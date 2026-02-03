@@ -77,12 +77,13 @@ class FlipStackWindow(Adw.ApplicationWindow):
 
         self.header_bar = Adw.HeaderBar()
         
-        logo_path = None
-        if os.path.exists("icons/io.github.dagaza.FlipStack.svg"): logo_path = "icons/io.github.dagaza.FlipStack.svg"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(base_dir, "icons", "io.github.dagaza.FlipStack.svg")
         
-        if logo_path:
+        if os.path.exists(logo_path):
             self.logo_img = Gtk.Image.new_from_file(logo_path)
         else:
+            # Fallback if something goes wrong
             self.logo_img = Gtk.Image.new_from_icon_name("applications-science-symbolic")
 
         self.logo_img.set_pixel_size(32)
