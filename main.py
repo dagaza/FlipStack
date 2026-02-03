@@ -78,7 +78,7 @@ class FlipStackWindow(Adw.ApplicationWindow):
         self.header_bar = Adw.HeaderBar()
         
         logo_path = None
-        if os.path.exists("icons/io.github.username.FlipStack.svg"): logo_path = "icons/io.github.username.FlipStack.svg"
+        if os.path.exists("icons/io.github.dagaza.FlipStack.svg"): logo_path = "icons/io.github.dagaza.FlipStack.svg"
         
         if logo_path:
             self.logo_img = Gtk.Image.new_from_file(logo_path)
@@ -732,7 +732,7 @@ class FlipStackWindow(Adw.ApplicationWindow):
     
 
 class FlipStackApp(Adw.Application):
-    def __init__(self): super().__init__(application_id="com.example.flipstack", flags=0)
+    def __init__(self): super().__init__(application_id="io.github.dagaza.FlipStack", flags=0)
     def do_activate(self):
         win = self.props.active_window
         if not win: win = FlipStackWindow(self)

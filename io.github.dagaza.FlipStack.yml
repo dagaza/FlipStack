@@ -27,6 +27,8 @@ modules:
 
       - cp -r *.py /app/share/flipstack/
 
+      - cp -r icons /app/share/flipstack/
+
       - install -D -m 755 flipstack.sh /app/bin/flipstack
 
       - install -D -m 644 io.github.dagaza.FlipStack.desktop /app/share/applications/io.github.dagaza.FlipStack.desktop
