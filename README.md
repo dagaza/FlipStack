@@ -4,7 +4,7 @@
   <img src="icons/io.github.username.FlipStack.svg" alt="FlipStack Logo" height="64" />
 </p>
 
-FlipStack is a modern, open-source Flashcard application built for Linux. It uses **Spaced Repetition (SRS)** to help you master any subject in the most efficient and effective way, from learning new languages, history, math, or programming. Built with **Python** and **GTK4/LibAdwaita**, it feels right at home on GNOME desktops (Ubuntu, Fedora, Linux Mint).
+FlipStack is a modern, open-source Flashcard application built for Linux. It uses Spaced Repetition (SRS) to help you master any subject efficiently—from languages and history to math and programming. Built with Python and GTK4/LibAdwaita, it offers a clean, native experience on Linux Mint, Ubuntu, Fedora, and other modern distributions.
 
 ![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/screenshots/dashboard_light.png) 
 
