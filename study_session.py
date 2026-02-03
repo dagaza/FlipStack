@@ -285,9 +285,26 @@ class StudySession(Gtk.Box):
     def play_sound(self, type):
         settings = db.load_settings()
         if not settings.get("sound_enabled", True): return
-        sound_map = { "good": "/usr/share/sounds/freedesktop/stereo/complete.oga", "miss": "/usr/share/sounds/freedesktop/stereo/dialog-error.oga", "flip": "/usr/share/sounds/freedesktop/stereo/button-toggle-on.oga" }
-        path = sound_map.get(type)
-        if path and os.path.exists(path): threading.Thread(target=lambda: subprocess.run(["paplay", path], stderr=subprocess.DEVNULL), daemon=True).start()
+
+        # 1. Locate the App's Assets Folder
+        # This works in Flatpak (/app/share/flipstack/assets) AND Local (flipstack/assets)
+        app_install_dir = os.path.dirname(os.path.abspath(__file__))
+        app_assets_dir = os.path.join(app_install_dir, "assets")
+
+        # 2. Define our bundled sounds
+        # Note: We renamed them to simple names (good.oga, miss.oga) when copying
+        sound_map = {
+            "good": os.path.join(app_assets_dir, "good.oga"),
+            "miss": os.path.join(app_assets_dir, "miss.oga"),
+            "flip": os.path.join(app_assets_dir, "flip.wav")
+        }
+
+        # 3. Play
+        target_path = sound_map.get(type)
+        if target_path and os.path.exists(target_path):
+            threading.Thread(target=lambda: subprocess.run(["paplay", target_path], stderr=subprocess.DEVNULL), daemon=True).start()
+        else:
+            print(f"Sound Warning: Missing asset '{target_path}'")
     
     def on_play_card_audio(self, btn):
         if not self.cards: return

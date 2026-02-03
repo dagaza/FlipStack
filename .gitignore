@@ -1,10 +1,10 @@
 .flatpak-builder/
 build-dir/
+user_data/
 __pycache__/
 *.py[cod]
 *.so
 decks/
-assets/
 backups/
 *.json
 *.zip

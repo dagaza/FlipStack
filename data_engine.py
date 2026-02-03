@@ -11,16 +11,28 @@ import re
 import tempfile
 import sys
 
-# --- PATH FIX FOR FLATPAK & INSTALLS ---
-# If running in Flatpak or standard install, store data in XDG_DATA_HOME.
-# Otherwise (development), keep using the local folder.
+# --- PATH CONFIGURATION ---
+
+# 1. Detect if we are running as a Flatpak or standard Linux install
 if os.environ.get("FLATPAK_ID") or os.environ.get("XDG_DATA_HOME"):
-    # Typically ~/.local/share/flipstack or ~/.var/app/.../data/flipstack
+    # PRODUCTION MODE
+    # Uses standard Linux data paths (e.g. ~/.var/app/io.github.dagaza.FlipStack/data/flipstack)
     base_data = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
     BASE_DIR = os.path.join(base_data, "flipstack")
 else:
-    # Local development mode
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # DEV / GITHUB MODE
+    # Uses a local folder 'user_data' inside your project so you don't pollute your hard drive
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.path.join(PROJECT_ROOT, "user_data")
+
+# 2. Define Sub-folders based on that Base Directory
+DATA_DIR = os.path.join(BASE_DIR, "decks")       # <--- JSON files go here
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")     # <--- User images/audio go here
+BACKUP_DIR = os.path.join(BASE_DIR, "backups")
+
+# 3. Create them if they don't exist
+for d in [BASE_DIR, DATA_DIR, ASSETS_DIR, BACKUP_DIR]:
+    os.makedirs(d, exist_ok=True)
 
 DATA_DIR = os.path.join(BASE_DIR, "decks")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
@@ -30,7 +42,7 @@ SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
 HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
 CATEGORIES_FILE = os.path.join(BASE_DIR, "categories.json")
 DECK_META_FILE = os.path.join(BASE_DIR, "deck_meta.json")
-COLORS_FILE = os.path.join(BASE_DIR, "deck_colors.json") # Don't forget the new color file!
+COLORS_FILE = os.path.join(BASE_DIR, "deck_colors.json")
 
 # Ensure directories exist
 for d in [BASE_DIR, DATA_DIR, ASSETS_DIR, BACKUP_DIR]:
@@ -135,15 +147,60 @@ def get_cards_by_tag(tag):
 
 # --- Asset Handling ---
 def save_asset(source_path):
-    if not source_path: return None
-    try:
-        ext = os.path.splitext(source_path)[1]
-        new_name = f"{datetime.datetime.now().timestamp()}{ext}"
-        target = os.path.join(ASSETS_DIR, new_name)
-        shutil.copy(source_path, target)
-        return new_name
-    except:
+    """
+    Copies a user-selected file to the internal ASSETS_DIR.
+    1. Preserves the original filename if possible.
+    2. If a file with that name exists, appends a counter (image.png -> image_1.png).
+    3. Returns the FINAL filename used.
+    """
+    if not source_path or not os.path.exists(source_path):
         return None
+
+    # 1. Get the original filename (e.g., "my_photo.jpg")
+    original_filename = os.path.basename(source_path)
+    name_part, extension = os.path.splitext(original_filename)
+
+    # 2. Basic cleanup (remove characters that break Linux filesystems)
+    # Allows letters, numbers, spaces, hyphens, underscores
+    safe_name = re.sub(r'[^\w\s-]', '', name_part).strip().replace(' ', '_')
+    if not safe_name: safe_name = "asset" # Fallback if name was only special chars
+
+    final_filename = f"{safe_name}{extension}"
+    destination_path = os.path.join(ASSETS_DIR, final_filename)
+
+    # 3. Collision Detection (The "Smart" part)
+    counter = 1
+    while os.path.exists(destination_path):
+        # Check if it's actually the exact same file (optimization)
+        # If the file in the folder is identical to the new one, we can just reuse it!
+        # (This prevents duplicating "icon.png" 50 times if the user re-imports it)
+        try:
+            if file_is_identical(source_path, destination_path):
+                return final_filename
+        except:
+            pass # If comparison fails, just rename to be safe
+
+        # If different, try new name: "my_photo_1.jpg"
+        final_filename = f"{safe_name}_{counter}{extension}"
+        destination_path = os.path.join(ASSETS_DIR, final_filename)
+        counter += 1
+
+    # 4. Perform the Copy
+    try:
+        shutil.copy2(source_path, destination_path)
+        return final_filename
+    except Exception as e:
+        print(f"Error copying asset: {e}")
+        return None
+
+def file_is_identical(file1, file2):
+    """Helper to check if two files are effectively the same content."""
+    # Simple check: same size?
+    if os.path.getsize(file1) != os.path.getsize(file2):
+        return False
+    # (Optional) You could do a hash check here for 100% certainty, 
+    # but size is usually a "good enough" proxy for UI speed.
+    return True
 
 def get_asset_path(filename):
     if not filename: return None
