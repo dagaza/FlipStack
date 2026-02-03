@@ -20,19 +20,30 @@ modules:
   - name: flipstack
     buildsystem: simple
     build-commands:
+      # --- 1. Create Directories ---
       - mkdir -p /app/bin
       - mkdir -p /app/share/flipstack
       - mkdir -p /app/share/applications
       - mkdir -p /app/share/icons/hicolor/scalable/apps
 
+      # --- 2. Copy Source Code ---
       - cp -r *.py /app/share/flipstack/
 
+      # --- 3. Copy App Resources (Internal Use) ---
+      # Copies 'assets' (sounds) so play_sound() finds them
+      - cp -r assets /app/share/flipstack/
+      
+      # Copies 'icons' (logo) so main.py finds the window icon
       - cp -r icons /app/share/flipstack/
 
+      # --- 4. Install System Integration Files ---
+      # Launcher Script
       - install -D -m 755 flipstack.sh /app/bin/flipstack
-
+      
+      # Desktop File
       - install -D -m 644 io.github.dagaza.FlipStack.desktop /app/share/applications/io.github.dagaza.FlipStack.desktop
 
+      # System Icon (Start Menu) - Copies from your local 'icons' folder to the system path
       - cp icons/io.github.dagaza.FlipStack.svg /app/share/icons/hicolor/scalable/apps/io.github.dagaza.FlipStack.svg
 
     sources:
