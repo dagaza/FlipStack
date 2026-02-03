@@ -1,9 +1,10 @@
 [Desktop Entry]
 Name=FlipStack
-Comment=Spaced Repetition Flashcards
+Comment=Master any subject with Spaced Repetition
 Exec=flipstack
 Icon=io.github.dagaza.FlipStack
-Terminal=false
 Type=Application
-Categories=Education;
+Terminal=false
+Categories=Education;GTK;
+Keywords=Flashcards;SRS;Learning;
 StartupNotify=true
