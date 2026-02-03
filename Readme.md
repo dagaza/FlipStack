@@ -1,7 +1,7 @@
 # FlipStack 🧠
 
 <p align="center">
-  <img src="icons/logo(32).svg" alt="FlipStack Logo" height="64" />
+  <img src="icons/io.github.username.FlipStack.svg" alt="FlipStack Logo" height="64" />
 </p>
 
 FlipStack is a modern, open-source Flashcard application built for Linux. It uses **Spaced Repetition (SRS)** to help you master any subject in the most efficient and effective way, from learning new languages, history, math, or programming. Built with **Python** and **GTK4/LibAdwaita**, it feels right at home on GNOME desktops (Ubuntu, Fedora, Linux Mint).
@@ -39,11 +39,11 @@ You need the system-level development headers for GObject Introspection and GTK4
 
 **Ubuntu / Debian / Linux Mint:**
 ```bash
-sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 libgirepository1.0-dev
+sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 libgirepository1.0-dev ```
 
 **Fedora:**
 ```bash
-sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
+sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher ```
 
 ## 🚀 **Installation & Running Locally**
 
@@ -51,21 +51,21 @@ sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
    
 ```bash
     git clone [https://github.com/dagaza/FlipStack.git](https://github.com/dagaza/FlipStack.git)
-    cd FlipStack
+    cd FlipStack ```
 
 2. Set up a virtual environment (Optional but recommended):
 ```bash
 python3 -m venv venv
-    source venv/bin/activate
+    source venv/bin/activate ```
 
 3. Install Python requirements:
 ```bash
-    pip install -r requirements.txt
+    pip install -r requirements.txt ```
 
 4. Run the app:
 ```bash
-    python3 main.py
-
+    python3 main.py ```
+ 
 ## 🛠️ Project Structure
 
     main.py: The entry point and main window logic.
