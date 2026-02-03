@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.so
+decks/
+assets/
+backups/
+*.json
+*.zip
+.vscode/
+venv/
