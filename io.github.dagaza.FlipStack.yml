@@ -26,7 +26,6 @@ modules:
       - mkdir -p /app/share/icons/hicolor/scalable/apps
 
       - cp -r *.py /app/share/flipstack/
-      - cp -r assets /app/share/flipstack/
 
       - install -D -m 755 flipstack.sh /app/bin/flipstack
 

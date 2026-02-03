@@ -8,3 +8,4 @@ Terminal=false
 Categories=Education;GTK;
 Keywords=Flashcards;SRS;Learning;
 StartupNotify=true
+Name[en_US]=io.github.dagaza.FlipStack.desktop
