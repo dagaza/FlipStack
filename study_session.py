@@ -41,7 +41,7 @@ class StudySession(Gtk.Box):
 
     def setup_css(self):
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(b"""
+        css_provider.load_from_string("""
             .btn-green { background: #2ec27e; color: white; }
             .btn-green:hover { background: #26a269; }
             .btn-yellow { background: #f5c211; color: black; }
