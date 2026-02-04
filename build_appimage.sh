@@ -54,24 +54,42 @@ linuxdeploy \
   --desktop-file io.github.dagaza.FlipStack.desktop
 
 # =========================================================
-# PHASE 2: MANUAL OVERRIDE (The Fix)
+# PHASE 2: MANUAL OVERRIDE (Smart Search Version)
 # =========================================================
-echo "🔧 Phase 2: Writing custom AppRun script..."
+echo "🔧 Phase 2: Writing smart AppRun script..."
 
-# We delete the auto-generated AppRun
+# Delete the auto-generated launcher
 rm -f AppDir/AppRun
 
-# We create our own. explicitly adding site-packages to PYTHONPATH
+# Create a smart launcher that hunts for the site-packages
 cat > AppDir/AppRun << 'EOF'
 #!/bin/bash
-# Get the directory where the AppImage is mounted
 APPDIR="$(dirname "$(readlink -f "${0}")")"
 
-# Force Python to look in the internal site-packages
-export PYTHONPATH="$APPDIR/usr/lib/python3.10/site-packages:$PYTHONPATH"
+# 1. FIND SITE-PACKAGES (Handles py3.8, 3.10, 3.11, etc.)
+# We look for the first directory named 'site-packages' inside the AppDir
+SITE_PACKAGES=$(find "$APPDIR" -name "site-packages" -type d | head -n 1)
 
-# Launch the app directly using the bundled python
-exec "$APPDIR/usr/bin/python3" -m main "$@"
+if [ -z "$SITE_PACKAGES" ]; then
+  # Fallback: check for dist-packages
+  SITE_PACKAGES=$(find "$APPDIR" -name "dist-packages" -type d | head -n 1)
+fi
+
+echo "🔍 Debug: Found packages at $SITE_PACKAGES" 1>&2
+
+# 2. SET ENVIRONMENT VARIABLES
+export PYTHONPATH="$SITE_PACKAGES:$PYTHONPATH"
+export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$APPDIR/usr/local/lib/girepository-1.0:$GI_TYPELIB_PATH"
+export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+
+# 3. FIND PYTHON EXECUTABLE
+# Look for 'python3' or similar executable files
+PYTHON_BIN=$(find "$APPDIR" -name "python3*" -type f -executable | grep -v "config" | head -n 1)
+
+echo "🔍 Debug: Using Python at $PYTHON_BIN" 1>&2
+
+# 4. LAUNCH
+exec "$PYTHON_BIN" -m main "$@"
 EOF
 
 # Make it executable
