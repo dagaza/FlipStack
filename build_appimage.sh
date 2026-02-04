@@ -8,14 +8,12 @@ if [ -f "$REPO_ROOT/linuxdeploy-root/AppRun" ]; then
     ln -sf "$REPO_ROOT/linuxdeploy-root/AppRun" "$REPO_ROOT/bin/linuxdeploy"
 fi
 
-# --- NEW: DOWNLOAD GTK PLUGIN ---
+# --- DOWNLOAD GTK PLUGIN ---
 if [ ! -f "$REPO_ROOT/bin/linuxdeploy-plugin-gtk.sh" ]; then
     echo "⬇️ Downloading GTK Plugin..."
     wget -q https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh -O "$REPO_ROOT/bin/linuxdeploy-plugin-gtk.sh"
     chmod +x "$REPO_ROOT/bin/linuxdeploy-plugin-gtk.sh"
 fi
-# --------------------------------
-
 export PATH="$REPO_ROOT/bin:$PATH"
 echo "✅ Tools setup in $REPO_ROOT/bin"
 
@@ -67,7 +65,7 @@ if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then
 fi
 
 # =========================================================
-# PHASE 2: MANUAL APPRUN (Updated for GTK)
+# PHASE 2: MANUAL APPRUN
 # =========================================================
 echo "🔧 Writing AppRun script..."
 rm -f AppDir/AppRun
@@ -81,7 +79,7 @@ export PATH="$APPDIR/usr/bin:$PATH"
 export PYTHONHOME="$APPDIR/usr"
 export PYTHONPATH="$APPDIR/usr/lib/python3.10:$APPDIR/usr/lib/python3.10/lib-dynload:$APPDIR/usr/lib/python3.10/site-packages:$PYTHONPATH"
 
-# 2. SETUP GTK/GLIB ENVIRONMENT (Crucial for the fix)
+# 2. SETUP GTK/GLIB ENVIRONMENT
 export XDG_DATA_DIRS="$APPDIR/usr/share:$XDG_DATA_DIRS"
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEMA_DIR"
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
@@ -89,6 +87,7 @@ export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIB
 
 # 3. DEBUG INFO
 echo "🔍 Debug: Launching..."
+echo "Using Python: $APPDIR/usr/bin/python3"
 
 # 4. RUN APP
 exec "$APPDIR/usr/bin/python3" -m main "$@"
@@ -101,16 +100,20 @@ chmod +x AppDir/AppRun
 # =========================================================
 echo "📦 Phase 3: Packing AppImage with GTK Plugin..."
 
-# ----------------- THE FIX IS HERE -----------------
-# Explicitly tell the plugin to bundle GTK 4 libraries
 export DEPLOY_GTK_VERSION=4
+
+# ----------------- THE FIX IS HERE -----------------
+# We locate the specific LibAdwaita library on the build system
+LIBADWAITA_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libadwaita-1.so.0" | head -n 1)
+
+echo "🔍 Found LibAdwaita at: $LIBADWAITA_PATH"
 # ---------------------------------------------------
 
-# We use the GTK plugin now! It will bundle Pango, Cairo, GdkPixbuf, etc.
 linuxdeploy \
   --appdir AppDir \
   --plugin gtk \
   --executable AppDir/usr/bin/python3 \
+  --library "$LIBADWAITA_PATH" \
   --icon-file assets/icons/io.github.dagaza.FlipStack.svg \
   --desktop-file io.github.dagaza.FlipStack.desktop \
   --output appimage
