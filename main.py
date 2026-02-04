@@ -305,7 +305,7 @@ class FlipStackWindow(Adw.ApplicationWindow):
             font-size: {size}px;
         }}
         """
-        self.font_provider.load_from_string(css.encode('utf-8'))
+        self.font_provider.load_from_string(css)
 
     # --- Callbacks ---
     def update_sound_icon(self):
