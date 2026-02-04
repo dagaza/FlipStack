@@ -37,26 +37,14 @@ mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
 cp io.github.dagaza.FlipStack.desktop AppDir/usr/share/applications/
 cp assets/icons/io.github.dagaza.FlipStack.svg AppDir/usr/share/icons/hicolor/scalable/apps/
 
-# 6. FIX EXECUTABLE LOCATION
-BINARY=$(find AppDir -name "flipstack" -type f | head -n 1)
-mkdir -p AppDir/usr/bin
-if [ "$BINARY" != "AppDir/usr/bin/flipstack" ]; then
-    echo "🚚 Moving executable to AppDir/usr/bin/"
-    mv "$BINARY" AppDir/usr/bin/
-fi
-
-# 6.5 PATCH THE SHEBANG
-echo "🔧 Patching executable interpreter path..."
-sed -i '1s|^#!.*|#!/usr/bin/env python3|' AppDir/usr/bin/flipstack
-
-# 7. PATCH DESKTOP FILE
+# 6. PATCH DESKTOP FILE
 sed -i 's|^Exec=.*|Exec=flipstack|' AppDir/usr/share/applications/io.github.dagaza.FlipStack.desktop
 
 export VERSION="1.0.0"
 export LINUXDEPLOY_OUTPUT_VERSION="$VERSION"
 
 # =========================================================
-# PHASE 1: Bundle Dependencies (Do NOT build AppImage yet)
+# PHASE 1: Bundle Dependencies
 # =========================================================
 echo "🚀 Phase 1: Bundling Python & Dependencies..."
 linuxdeploy \
@@ -66,19 +54,33 @@ linuxdeploy \
   --desktop-file io.github.dagaza.FlipStack.desktop
 
 # =========================================================
-# PHASE 2: Hijack the Launch Script (The Critical Fix)
+# PHASE 2: MANUAL OVERRIDE (The Fix)
 # =========================================================
-echo "🔧 Phase 2: Forcing use of local start script..."
-# Remove the generic AppRun created by the python plugin
+echo "🔧 Phase 2: Writing custom AppRun script..."
+
+# We delete the auto-generated AppRun
 rm -f AppDir/AppRun
-# Link AppRun to OUR script (which has the correct paths and shebang)
-ln -s usr/bin/flipstack AppDir/AppRun
+
+# We create our own. explicitly adding site-packages to PYTHONPATH
+cat > AppDir/AppRun << 'EOF'
+#!/bin/bash
+# Get the directory where the AppImage is mounted
+APPDIR="$(dirname "$(readlink -f "${0}")")"
+
+# Force Python to look in the internal site-packages
+export PYTHONPATH="$APPDIR/usr/lib/python3.10/site-packages:$PYTHONPATH"
+
+# Launch the app directly using the bundled python
+exec "$APPDIR/usr/bin/python3" -m main "$@"
+EOF
+
+# Make it executable
+chmod +x AppDir/AppRun
 
 # =========================================================
 # PHASE 3: Pack the AppImage
 # =========================================================
 echo "📦 Phase 3: Generating AppImage..."
-# We run linuxdeploy again WITHOUT the python plugin to pack the result
 linuxdeploy \
   --appdir AppDir \
   --output appimage
