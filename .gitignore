@@ -1,4 +1,6 @@
+*.flatpak
 .flatpak-builder/
+repo/
 build-dir/
 user_data/
 __pycache__/

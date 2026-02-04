@@ -289,7 +289,7 @@ class StudySession(Gtk.Box):
         # 1. Locate the App's Assets Folder
         # This works in Flatpak (/app/share/flipstack/assets) AND Local (flipstack/assets)
         app_install_dir = os.path.dirname(os.path.abspath(__file__))
-        app_assets_dir = os.path.join(app_install_dir, "assets", "Sounds")
+        app_assets_dir = os.path.join(app_install_dir, "assets", "sounds")
 
         # 2. Define our bundled sounds
         # Note: We renamed them to simple names (good.oga, miss.oga) when copying

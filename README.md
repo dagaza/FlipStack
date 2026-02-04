@@ -2,7 +2,7 @@
 
 FlipStack is a modern, open-source Flashcard application built for Linux. It uses Spaced Repetition (SRS) to help you master any subject efficiently—from languages and history to math and programming. Built with Python and GTK4/LibAdwaita, it offers a clean, native experience on Linux Mint, Ubuntu, Fedora, and other modern distributions.
 
-![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/screenshots/flashcard_front_light.png) 
+![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/flashcard_front_light.png) 
 
 ## 🧠 Features
 
@@ -74,11 +74,14 @@ sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
 * `dashboard_view.py`: The "Home" screen with the heatmap and stats.
 * `performance_view.py`: The "Performance" screen displaying stats for individual decks.
 * `deck_editor.py`: The GUI for adding/editing cards and assets.
-* `user_data/decks/`: Your flashcard data is stored here as simple JSON files.
-* `user_data/assets/`: Stores user-assets like audio and images added to flashcards.
-* `user_data/backups/`: Stores *.zip files containing all the user database.
-* `icons/`: The app logo is stored here.
-* `assets/`: Stores app-related asset files (audio/images).
+* `assets/`: Contains static application resources (Read-Only).
+  * `assets/icons/`: Application logos and window icons.
+  * `assets/sounds/`: UI sound effects (correct, incorrect, flip).
+  * `assets/screenshots/`: Images used in the README and AppStream metadata.
+* `user_data/`: Contains all user-generated content (Ignored by Git).
+  * `user_data/decks/`: Flashcard data stored as JSON files.
+  * `user_data/assets/`: Media files (images/audio) attached to user flashcards.
+  * `user_data/backups/`: Automatic backups (*.zip) of the user database.
 
 ## 🤝 Contributing
 

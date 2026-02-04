@@ -30,37 +30,35 @@
   <screenshots>
     <screenshot type="default">
       <caption>Your Activity Dashboard</caption>
-      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/screenshots/dashboard_light.png</image>
+      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/assets/screenshots/dashboard_light.png</image>
     </screenshot>
     
     <screenshot>
       <caption>Dark Mode Support</caption>
-      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/screenshots/dashboard_dark.png</image>
+      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/assets/screenshots/dashboard_dark.png</image>
     </screenshot>
     
     <screenshot>
       <caption>Rich Text Cards With Audio and Image Support</caption>
-      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/screenshots/flashcard_front_light.png</image>
+      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/assets/screenshots/flashcard_front_light.png</image>
     </screenshot>
     
     <screenshot>
       <caption>Keyboard Navigation Support</caption>
-      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/screenshots/flashcard_back_light.png</image>
+      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/assets/screenshots/flashcard_back_light.png</image>
     </screenshot>
 
     <screenshot>
       <caption>Performance Graphs</caption>
-      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/screenshots/deck_performance_light.png</image>
+      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/assets/screenshots/deck_performance_light.png</image>
     </screenshot>
-  </screenshots>
 
- <screenshot>
+    <screenshot>
       <caption>Performance Graphs (dark)</caption>
-      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/screenshots/deck_performance_dark.png</image>
+      <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/assets/screenshots/deck_performance_dark.png</image>
     </screenshot>
-  </screenshots>  
 
-<screenshot>
+    <screenshot>
       <caption>Custom Fonts and Font Sizes</caption>
       <image>https://raw.githubusercontent.com/dagaza/FlipStack/main/screenshots/text_settings_light.png</image>
     </screenshot>

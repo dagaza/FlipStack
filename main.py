@@ -78,7 +78,7 @@ class FlipStackWindow(Adw.ApplicationWindow):
         self.header_bar = Adw.HeaderBar()
         
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        logo_path = os.path.join(base_dir, "assets", "Icons", "io.github.dagaza.FlipStack.svg")
+        logo_path = os.path.join(base_dir, "assets", "icons", "io.github.dagaza.FlipStack.svg")
        
         if os.path.exists(logo_path):
             self.logo_img = Gtk.Image.new_from_file(logo_path)
