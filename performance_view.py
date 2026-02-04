@@ -14,7 +14,7 @@ class PerformanceView(Gtk.Box):
         deck_name = filename.replace(".json", "").replace("_", " ").title()
 
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(b"""
+        css_provider.load_from_data("""
             .bar-green block.filled { background-color: #2ec27e; }
             .bar-yellow block.filled { background-color: #f5c211; }
             .bar-red block.filled { background-color: #ed333b; }
