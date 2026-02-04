@@ -12,3 +12,13 @@ backups/
 *.zip
 .vscode/
 venv/
+
+# AppImage Build Artifacts
+linuxdeploy*.AppImage
+linuxdeploy-root/
+linuxdeploy-plugin-python-root/
+AppDir/
+*.AppImage
+bin/
+build/
+*.egg-info/

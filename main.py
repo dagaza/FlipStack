@@ -733,15 +733,23 @@ class FlipStackWindow(Adw.ApplicationWindow):
     
 
 class FlipStackApp(Adw.Application):
-    def __init__(self): super().__init__(application_id="io.github.dagaza.FlipStack", flags=0)
+    def __init__(self): 
+        super().__init__(application_id="io.github.dagaza.FlipStack", flags=0)
+        
     def do_activate(self):
         win = self.props.active_window
-        if not win: win = FlipStackWindow(self)
+        if not win: 
+            win = FlipStackWindow(self)
         win.present()
 
-if __name__ == "__main__":
+# 1. Define the entry point function (Used by pip/AppImage)
+def main():
     app = FlipStackApp()
+    return app.run(sys.argv)
+
+# 2. Use that function for local execution
+if __name__ == "__main__":
     try:
-        app.run(sys.argv)
+        sys.exit(main())
     except KeyboardInterrupt:
         pass

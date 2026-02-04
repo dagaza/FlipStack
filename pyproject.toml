@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flipstack"
+version = "1.0.0"
+description = "Master any subject with Spaced Repetition"
+authors = [
+  { name = "Dan Zadobrischi", email = "dan.zadobrischi@gmail.com" },
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+
+# These are the libraries your app needs to run
+dependencies = [
+    "PyGObject",
+]
+
+# This creates a 'flipstack' command that runs your main() function
+[project.scripts]
+flipstack = "main:main"
+
+[tool.setuptools]
+# We list your python files here since they are in the root
+py-modules = ["main", "data_engine", "study_session", "dashboard_view", "performance_view", "deck_editor"]

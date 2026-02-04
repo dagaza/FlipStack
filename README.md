@@ -42,7 +42,7 @@ sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 libgire
 sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
 ```
 
-## 🚀 Installation & Running Locally
+## 🚀 Installation & Running Locally from Source (For Developers)
 
 1. **Clone the repository:**
    ```bash
@@ -60,11 +60,26 @@ sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
    ```bash
    pip install -r requirements.txt
    ```
+or 
+    ```bash
+    pip install -e .
+    ```
 
 4. **Run the app:**
    ```bash
    python3 main.py
    ```
+
+## 📥 Download & Install (Recommended For Users)
+
+You don't need to install Python or touch the terminal to run FlipStack.
+
+**Option A:** Flatpak: Search for "FlipStack" on Flathub or your Software Center.
+
+**Option B:** AppImage (Portable):
+* Download the .AppImage file from the Releases Page.
+* Right-click the file → Properties → Permissions → Check "Allow executing file as program".
+* Double-click to run!
 
 ## 🛠️ Project Structure
 
