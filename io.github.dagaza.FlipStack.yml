@@ -25,16 +25,13 @@ modules:
       - mkdir -p /app/share/flipstack
       - mkdir -p /app/share/applications
       - mkdir -p /app/share/icons/hicolor/scalable/apps
+      - mkdir -p /app/share/metainfo
 
       # --- 2. Copy Source Code ---
       - cp -r *.py /app/share/flipstack/
 
-      # --- 3. Copy App Resources (Internal Use) ---
-      # Copies 'assets' (sounds) so play_sound() finds them
+      # --- 3. Copy ALL App Resources ---
       - cp -r assets /app/share/flipstack/
-      
-      # Copies 'icons' (logo) so main.py finds the window icon
-      - cp -r icons /app/share/flipstack/
 
       # --- 4. Install System Integration Files ---
       # Launcher Script
@@ -43,8 +40,11 @@ modules:
       # Desktop File
       - install -D -m 644 io.github.dagaza.FlipStack.desktop /app/share/applications/io.github.dagaza.FlipStack.desktop
 
-      # System Icon (Start Menu) - Copies from your local 'icons' folder to the system path
-      - cp icons/io.github.dagaza.FlipStack.svg /app/share/icons/hicolor/scalable/apps/io.github.dagaza.FlipStack.svg
+      # System Icon (Start Menu) - UPDATED PATH
+      - cp assets/icons/io.github.dagaza.FlipStack.svg /app/share/icons/hicolor/scalable/apps/io.github.dagaza.FlipStack.svg
+
+      # AppStream Metadata (Store Page) - Required for Flathub
+      - install -D -m 644 io.github.dagaza.FlipStack.metainfo.xml /app/share/metainfo/io.github.dagaza.FlipStack.metainfo.xml
 
     sources:
       - type: dir

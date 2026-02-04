@@ -76,7 +76,7 @@ sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
 * `deck_editor.py`: The GUI for adding/editing cards and assets.
 * `user_data/decks/`: Your flashcard data is stored here as simple JSON files.
 * `user_data/assets/`: Stores user-assets like audio and images added to flashcards.
-* `user_data/backups/`: Stores *.zip files containing all the user database
+* `user_data/backups/`: Stores *.zip files containing all the user database.
 * `icons/`: The app logo is stored here.
 * `assets/`: Stores app-related asset files (audio/images).
 
