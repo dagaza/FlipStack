@@ -55,34 +55,43 @@ if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then
     cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/
 fi
 
-# --- FIX 1: AVATARS (GDK PIXBUF LOADERS) ---
-echo "🖼️  Bundling Image Loaders (Fixes Avatars)..."
+# --- FIX 1: AVATARS (RELATIVE PATHS) ---
+echo "🖼️  Bundling Image Loaders..."
 mkdir -p AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/
 
-# Find and run the query tool
 QUERY_LOADERS=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
 if [ -z "$QUERY_LOADERS" ]; then
     echo "❌ Error: Could not find gdk-pixbuf-query-loaders tool."
     exit 1
 fi
-"$QUERY_LOADERS" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
-sed -i 's|AppDir/||g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
-# --- FIX 2: UI THEME (ICONS & SETTINGS) ---
-echo "🎨 Bundling Theme Resources (Fixes UI)..."
+# Generate Cache
+"$QUERY_LOADERS" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+
+# CHECKSUM FIX: We strip the entire path so it just lists filenames (e.g., "libpixbufloader-svg.so")
+# This forces GDK to look in the GDK_PIXBUF_MODULEDIR we set in AppRun.
+sed -i "s|$(pwd)/AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/||g" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+
+# --- FIX 2: UI THEME (CONFIG & SCHEMAS) ---
+echo "🎨 Bundling Theme Resources..."
 mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
 cp -r /usr/share/icons/hicolor AppDir/usr/share/icons/
 
+# Create Settings File
 mkdir -p AppDir/usr/etc/gtk-4.0
 cat > AppDir/usr/etc/gtk-4.0/settings.ini << 'EOF'
 [Settings]
 gtk-theme-name=Adwaita
 gtk-icon-theme-name=Adwaita
 gtk-application-prefer-dark-theme=1
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle=hintfull
 EOF
 
+# Compile Schemas
 mkdir -p AppDir/usr/share/glib-2.0/schemas
 cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
 glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
@@ -108,20 +117,31 @@ export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEM
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
-# 3. FIX IMAGES
+# --- THE FIX FOR BLUNT UI ---
+# Tell GTK to look for settings.ini in our bundled folder
+export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
+# ----------------------------
+
+# --- THE FIX FOR AVATARS ---
+# 1. Point to the cache file
 export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+# 2. Point to the FOLDER containing the .so files (Crucial for relative paths)
+export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
+# ---------------------------
 
-# 4. FIX THEME (FORCE DARK MODE)
+# --- THE FIX FOR TOGGLE BUTTON ---
 export ADW_DISABLE_PORTAL=1
-export GTK_THEME=Adwaita:dark  # <--- FORCE DARK THEME HERE
+# We REMOVED 'export GTK_THEME=Adwaita:dark'
+# We now rely on settings.ini (configured above) to set the default,
+# allowing the toggle button to change it at runtime.
 
-# 5. ISOLATE MODULES
+# ISOLATE MODULES
 export GIO_MODULE_DIR="$APPDIR/usr/lib/gio/modules"
 unset GIO_EXTRA_MODULES
 unset GTK_IM_MODULE
 export GTK_IM_MODULE_FILE=/dev/null
 
-# 6. LAUNCH
+# LAUNCH
 exec "$APPDIR/usr/bin/python3" -m main "$@"
 EOF
 
@@ -134,16 +154,10 @@ echo "📦 Phase 3: Packing AppImage..."
 
 export DEPLOY_GTK_VERSION=4
 
-# 1. Find LibAdwaita
+# Find Libraries
 LIBADWAITA_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libadwaita-1.so.0" | head -n 1)
-
-# 2. Find Librsvg (THE MISSING LINK FOR AVATARS/ICONS)
 LIBRSVG_PATH=$(find /usr/lib/x86_64-linux-gnu -name "librsvg-2.so.2" | head -n 1)
 
-echo "🔍 Found LibAdwaita: $LIBADWAITA_PATH"
-echo "🔍 Found Librsvg: $LIBRSVG_PATH"
-
-# 3. Bundle EVERYTHING
 linuxdeploy \
   --appdir AppDir \
   --plugin gtk \
