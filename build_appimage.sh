@@ -47,6 +47,12 @@ export LINUXDEPLOY_OUTPUT_VERSION="$VERSION"
 # PHASE 1: Bundle Dependencies
 # =========================================================
 echo "🚀 Phase 1: Bundling Python & Dependencies..."
+
+# ----------------- THE FIX IS HERE -----------------
+# We force the plugin to fetch Python 3.10 to match our build environment
+export LINUXDEPLOY_PLUGIN_PYTHON_VERSION="3.10"
+# ---------------------------------------------------
+
 linuxdeploy \
   --appdir AppDir \
   --plugin python \
@@ -57,22 +63,18 @@ linuxdeploy \
 # PHASE 2: MANUAL OVERRIDE (Smart Search Version)
 # =========================================================
 echo "🔧 Phase 2: Writing smart AppRun script..."
-
-# Delete the auto-generated launcher
 rm -f AppDir/AppRun
 
-# Create a smart launcher that hunts for the site-packages
 cat > AppDir/AppRun << 'EOF'
 #!/bin/bash
 APPDIR="$(dirname "$(readlink -f "${0}")")"
 
-# 1. FIND SITE-PACKAGES (Handles py3.8, 3.10, 3.11, etc.)
-# We look for the first directory named 'site-packages' inside the AppDir
-SITE_PACKAGES=$(find "$APPDIR" -name "site-packages" -type d | head -n 1)
+# 1. FIND SITE-PACKAGES (Now looking specifically for 3.10)
+SITE_PACKAGES=$(find "$APPDIR" -name "site-packages" -type d | grep "python3.10" | head -n 1)
 
 if [ -z "$SITE_PACKAGES" ]; then
-  # Fallback: check for dist-packages
-  SITE_PACKAGES=$(find "$APPDIR" -name "dist-packages" -type d | head -n 1)
+  # Fallback search if specific version not found
+  SITE_PACKAGES=$(find "$APPDIR" -name "site-packages" -type d | head -n 1)
 fi
 
 echo "🔍 Debug: Found packages at $SITE_PACKAGES" 1>&2
@@ -83,8 +85,12 @@ export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$APPDIR/usr/local/lib/g
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
 # 3. FIND PYTHON EXECUTABLE
-# Look for 'python3' or similar executable files
-PYTHON_BIN=$(find "$APPDIR" -name "python3*" -type f -executable | grep -v "config" | head -n 1)
+PYTHON_BIN=$(find "$APPDIR" -name "python3.10" -type f -executable | head -n 1)
+
+if [ -z "$PYTHON_BIN" ]; then
+    # Fallback to any python3
+    PYTHON_BIN=$(find "$APPDIR" -name "python3*" -type f -executable | grep -v "config" | head -n 1)
+fi
 
 echo "🔍 Debug: Using Python at $PYTHON_BIN" 1>&2
 
@@ -92,7 +98,6 @@ echo "🔍 Debug: Using Python at $PYTHON_BIN" 1>&2
 exec "$PYTHON_BIN" -m main "$@"
 EOF
 
-# Make it executable
 chmod +x AppDir/AppRun
 
 # =========================================================
