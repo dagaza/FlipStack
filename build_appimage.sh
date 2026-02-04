@@ -101,6 +101,11 @@ chmod +x AppDir/AppRun
 # =========================================================
 echo "📦 Phase 3: Packing AppImage with GTK Plugin..."
 
+# ----------------- THE FIX IS HERE -----------------
+# Explicitly tell the plugin to bundle GTK 4 libraries
+export DEPLOY_GTK_VERSION=4
+# ---------------------------------------------------
+
 # We use the GTK plugin now! It will bundle Pango, Cairo, GdkPixbuf, etc.
 linuxdeploy \
   --appdir AppDir \
