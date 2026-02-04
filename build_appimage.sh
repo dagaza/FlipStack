@@ -50,6 +50,13 @@ if [ "$BINARY" != "AppDir/usr/bin/flipstack" ]; then
     mv "$BINARY" AppDir/usr/bin/
 fi
 
+# ----------------- THE FIX IS HERE -----------------
+# 6.5 PATCH THE SHEBANG (Fixes "execv error" / "No such file")
+# We replace the hardcoded GitHub runner path with a generic env lookup
+echo "🔧 Patching executable interpreter path..."
+sed -i '1s|^#!.*|#!/usr/bin/env python3|' AppDir/usr/bin/flipstack
+# ---------------------------------------------------
+
 # 7. PATCH DESKTOP FILE
 # Ensure the Exec line is just 'Exec=flipstack', not an absolute path like '/app/bin/flipstack'
 sed -i 's|^Exec=.*|Exec=flipstack|' AppDir/usr/share/applications/io.github.dagaza.FlipStack.desktop
