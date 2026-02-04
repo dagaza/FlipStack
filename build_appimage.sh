@@ -65,7 +65,7 @@ if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then
 fi
 
 # =========================================================
-# PHASE 2: MANUAL APPRUN
+# PHASE 2: MANUAL APPRUN (Strict Environment)
 # =========================================================
 echo "🔧 Writing AppRun script..."
 rm -f AppDir/AppRun
@@ -85,6 +85,13 @@ export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEM
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
+# --- THE FIX IS HERE ---
+# Prevent loading incompatible system GIO modules
+export GIO_MODULE_DIR="$APPDIR/usr/lib/gio/modules"
+# Unset any user overrides that might point to system paths
+unset GIO_EXTRA_MODULES
+# -----------------------
+
 # 3. DEBUG INFO
 echo "🔍 Debug: Launching..."
 echo "Using Python: $APPDIR/usr/bin/python3"
@@ -96,18 +103,15 @@ EOF
 chmod +x AppDir/AppRun
 
 # =========================================================
-# PHASE 3: DEPLOY & PACK (With GTK Plugin)
+# PHASE 3: DEPLOY & PACK
 # =========================================================
 echo "📦 Phase 3: Packing AppImage with GTK Plugin..."
 
 export DEPLOY_GTK_VERSION=4
 
-# ----------------- THE FIX IS HERE -----------------
-# We locate the specific LibAdwaita library on the build system
+# Locate LibAdwaita
 LIBADWAITA_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libadwaita-1.so.0" | head -n 1)
-
 echo "🔍 Found LibAdwaita at: $LIBADWAITA_PATH"
-# ---------------------------------------------------
 
 linuxdeploy \
   --appdir AppDir \
