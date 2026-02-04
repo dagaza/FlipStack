@@ -42,7 +42,7 @@ class FlipStackWindow(Adw.ApplicationWindow):
         
         # Base CSS
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(b"""
+        css_provider.load_from_string("""
             .red-icon { color: #ed333b; }
             .red-icon:hover { color: #c01c28; background: alpha(#ed333b, 0.1); }
             
