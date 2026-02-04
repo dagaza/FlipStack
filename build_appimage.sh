@@ -6,7 +6,6 @@ REPO_ROOT=$(pwd)
 mkdir -p "$REPO_ROOT/bin"
 if [ -f "$REPO_ROOT/linuxdeploy-root/AppRun" ]; then
     ln -sf "$REPO_ROOT/linuxdeploy-root/AppRun" "$REPO_ROOT/bin/linuxdeploy"
-    ln -sf "$REPO_ROOT/linuxdeploy-plugin-python-root/AppRun" "$REPO_ROOT/bin/linuxdeploy-plugin-python"
 fi
 export PATH="$REPO_ROOT/bin:$PATH"
 
@@ -15,97 +14,86 @@ echo "✅ Tools setup in $REPO_ROOT/bin"
 # 2. CLEANUP
 rm -rf AppDir FlipStack*.AppImage
 
-# 3. INSTALL APP
-echo "📦 Installing dependencies..."
-python3 -m pip install . --prefix="$REPO_ROOT/AppDir/usr" --break-system-packages
+# 3. INSTALL APP & DEPENDENCIES
+echo "📦 Installing dependencies to AppDir..."
+# We explicitly install to the python3.10 folder
+mkdir -p AppDir/usr/lib/python3.10/site-packages
+export PYTHONPATH="$REPO_ROOT/AppDir/usr/lib/python3.10/site-packages:$PYTHONPATH"
 
-# 4. MANUALLY COPY ASSETS
-SITE_PACKAGES=$(find AppDir -type d \( -name "site-packages" -o -name "dist-packages" \) | head -n 1)
-cp -r assets "$SITE_PACKAGES/"
+python3 -m pip install . --target="$REPO_ROOT/AppDir/usr/lib/python3.10/site-packages" --upgrade
 
-# 4.5 NORMALIZE FOLDER STRUCTURE
-if [ -d "AppDir/usr/local/lib" ]; then
-    echo "🔧 Normalizing directory structure..."
-    mkdir -p AppDir/usr/lib
-    cp -r AppDir/usr/local/lib/* AppDir/usr/lib/
-    rm -rf AppDir/usr/local
-fi
-
-# 5. DESKTOP INTEGRATION
+# 4. ASSETS & DESKTOP INTEGRATION
+echo "🎨 Setting up assets..."
 mkdir -p AppDir/usr/share/applications
 mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
 cp io.github.dagaza.FlipStack.desktop AppDir/usr/share/applications/
 cp assets/icons/io.github.dagaza.FlipStack.svg AppDir/usr/share/icons/hicolor/scalable/apps/
 
-# 6. PATCH DESKTOP FILE
-sed -i 's|^Exec=.*|Exec=flipstack|' AppDir/usr/share/applications/io.github.dagaza.FlipStack.desktop
+# Fix Desktop Exec line
+sed -i 's|^Exec=.*|Exec=AppRun|' AppDir/usr/share/applications/io.github.dagaza.FlipStack.desktop
 
 export VERSION="1.0.0"
-export LINUXDEPLOY_OUTPUT_VERSION="$VERSION"
 
 # =========================================================
-# PHASE 1: Bundle Dependencies
+# PHASE 1.5: MANUAL PYTHON BUNDLING (The Fix)
 # =========================================================
-echo "🚀 Phase 1: Bundling Python & Dependencies..."
+echo "🐍 Manual Bundling: Copying System Python 3.10..."
 
-# ----------------- THE FIX IS HERE -----------------
-# We force the plugin to fetch Python 3.10 to match our build environment
-export LINUXDEPLOY_PLUGIN_PYTHON_VERSION="3.10"
-# ---------------------------------------------------
+# A. Copy the Python Executable
+mkdir -p AppDir/usr/bin
+cp $(which python3) AppDir/usr/bin/python3
 
-linuxdeploy \
-  --appdir AppDir \
-  --plugin python \
-  --icon-file assets/icons/io.github.dagaza.FlipStack.svg \
-  --desktop-file io.github.dagaza.FlipStack.desktop
+# B. Copy the Standard Library (os, sys, etc.)
+mkdir -p AppDir/usr/lib
+cp -r /usr/lib/python3.10 AppDir/usr/lib/
+
+# C. Copy GObject TypeLibs (Required for 'gi')
+mkdir -p AppDir/usr/lib/girepository-1.0
+if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then
+    cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/
+fi
 
 # =========================================================
-# PHASE 2: MANUAL OVERRIDE (Smart Search Version)
+# PHASE 2: MANUAL APPRUN
 # =========================================================
-echo "🔧 Phase 2: Writing smart AppRun script..."
+echo "🔧 Writing AppRun script..."
 rm -f AppDir/AppRun
 
 cat > AppDir/AppRun << 'EOF'
 #!/bin/bash
 APPDIR="$(dirname "$(readlink -f "${0}")")"
 
-# 1. FIND SITE-PACKAGES (Now looking specifically for 3.10)
-SITE_PACKAGES=$(find "$APPDIR" -name "site-packages" -type d | grep "python3.10" | head -n 1)
+# 1. SETUP ENVIRONMENT
+export PATH="$APPDIR/usr/bin:$PATH"
+export PYTHONHOME="$APPDIR/usr"
+export PYTHONPATH="$APPDIR/usr/lib/python3.10:$APPDIR/usr/lib/python3.10/site-packages:$PYTHONPATH"
 
-if [ -z "$SITE_PACKAGES" ]; then
-  # Fallback search if specific version not found
-  SITE_PACKAGES=$(find "$APPDIR" -name "site-packages" -type d | head -n 1)
-fi
-
-echo "🔍 Debug: Found packages at $SITE_PACKAGES" 1>&2
-
-# 2. SET ENVIRONMENT VARIABLES
-export PYTHONPATH="$SITE_PACKAGES:$PYTHONPATH"
-export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$APPDIR/usr/local/lib/girepository-1.0:$GI_TYPELIB_PATH"
+# Setup GObject paths
+export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
-# 3. FIND PYTHON EXECUTABLE
-PYTHON_BIN=$(find "$APPDIR" -name "python3.10" -type f -executable | head -n 1)
+# 2. DEBUG INFO
+echo "🔍 Debug: Python Version Check:"
+"$APPDIR/usr/bin/python3" --version
 
-if [ -z "$PYTHON_BIN" ]; then
-    # Fallback to any python3
-    PYTHON_BIN=$(find "$APPDIR" -name "python3*" -type f -executable | grep -v "config" | head -n 1)
-fi
-
-echo "🔍 Debug: Using Python at $PYTHON_BIN" 1>&2
-
-# 4. LAUNCH
-exec "$PYTHON_BIN" -m main "$@"
+# 3. RUN APP
+exec "$APPDIR/usr/bin/python3" -m main "$@"
 EOF
 
 chmod +x AppDir/AppRun
 
 # =========================================================
-# PHASE 3: Pack the AppImage
+# PHASE 3: DEPLOY & PACK
 # =========================================================
-echo "📦 Phase 3: Generating AppImage..."
+echo "📦 Phase 3: Packing AppImage..."
+
+# We run linuxdeploy specifically on our COPIED python binary.
+# This makes it find and bundle all the shared libraries (libpython, libc, etc.)
 linuxdeploy \
   --appdir AppDir \
+  --executable AppDir/usr/bin/python3 \
+  --icon-file assets/icons/io.github.dagaza.FlipStack.svg \
+  --desktop-file io.github.dagaza.FlipStack.desktop \
   --output appimage
 
 echo "🎉 Success! You can find your AppImage in this folder."
