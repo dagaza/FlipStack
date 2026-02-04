@@ -31,7 +31,7 @@ sed -i 's|^Exec=.*|Exec=AppRun|' AppDir/usr/share/applications/io.github.dagaza.
 export VERSION="1.0.0"
 
 # =========================================================
-# PHASE 1.5: MANUAL BUNDLING (Resource Edition)
+# PHASE 1.5: MANUAL BUNDLING
 # =========================================================
 echo "🐍 Manual Bundling: Python & Core..."
 
@@ -58,11 +58,20 @@ fi
 # --- FIX 1: AVATARS (GDK PIXBUF LOADERS) ---
 echo "🖼️  Bundling Image Loaders (Fixes Avatars)..."
 mkdir -p AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
-# Copy the system loaders (librsvg, png, jpeg, etc.)
+# Copy loaders
 cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/
-# Generate the cache file so the app knows where they are
-gdk-pixbuf-query-loaders AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
-# Set the path properly in the cache file
+
+# FIND THE QUERY TOOL (The Fix)
+# On Ubuntu 24.04, this tool is hidden in /usr/lib/... not /usr/bin
+QUERY_LOADERS=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
+
+if [ -z "$QUERY_LOADERS" ]; then
+    echo "❌ Error: Could not find gdk-pixbuf-query-loaders tool."
+    exit 1
+fi
+
+echo "Using query tool at: $QUERY_LOADERS"
+"$QUERY_LOADERS" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 sed -i 's|AppDir/||g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
 # --- FIX 2: UI THEME (ICONS & SETTINGS) ---
@@ -71,7 +80,6 @@ mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
 cp -r /usr/share/icons/hicolor AppDir/usr/share/icons/
 
-# Create a GTK settings.ini to force the theme
 mkdir -p AppDir/usr/etc/gtk-4.0
 cat > AppDir/usr/etc/gtk-4.0/settings.ini << 'EOF'
 [Settings]
@@ -80,7 +88,6 @@ gtk-icon-theme-name=Adwaita
 gtk-application-prefer-dark-theme=1
 EOF
 
-# Bundle compiled schemas
 mkdir -p AppDir/usr/share/glib-2.0/schemas
 cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
 glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
@@ -106,11 +113,10 @@ export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEM
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
-# 3. FIX IMAGES (Avatars)
+# 3. FIX IMAGES
 export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 
-# 4. FIX THEME (Light/Dark Mode & Blunt UI)
-# We force LibAdwaita to ignore the broken system portal and use our settings
+# 4. FIX THEME
 export ADW_DISABLE_PORTAL=1
 export GTK_THEME=Adwaita
 
