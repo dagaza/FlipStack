@@ -6,7 +6,7 @@
 
 FlipStack is a modern, open-source Flashcard application built for Linux. It uses Spaced Repetition (SRS) to help you master any subject efficiently—from languages and history to math and programming. Built with Python and GTK4/LibAdwaita, it offers a clean, native experience on Linux Mint, Ubuntu, Fedora, and other modern distributions.
 
-![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/screenshots/dashboard_light.png) 
+![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/screenshots/flashcard_front_light.png) 
 
 ## ✨ Features
 
@@ -18,11 +18,11 @@ FlipStack is a modern, open-source Flashcard application built for Linux. It use
 * **Rich Dashboard:** Visualize your consistency with a GitHub-style activity heatmap and streak counter.
 * **Deck Management:**
     * Organize decks into custom **Categories**.
-    * **Import** from Anki (`.apkg`) and CSV files.
+    * **Import** from CSV files or other flashcard apps such as Anki (`.apkg`).
     * **Export** your data to JSON or CSV.
 * **Powerful Editor:**
-    * Supports **Images** and **Audio** (with auto-play).
-    * Rich text support (Bold/Italic via Markdown syntax).
+    * Supports **Images** and **Audio**.
+    * Rich text support (Bold/Italic/Strikethrough/Code blocks via Markdown syntax).
     * **Leech Management:** Automatically suspends cards you constantly miss.
 * **Customization:**
     * Dark/Light mode toggle.
@@ -76,10 +76,13 @@ sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
 * `data_engine.py`: Handles database operations (JSON), imports, and the SRS algorithm.
 * `study_session.py`: The logic for the flashcard review screen.
 * `dashboard_view.py`: The "Home" screen with the heatmap and stats.
+* `performance_view.py`: The "Performance" screen displaying stats for individual decks.
 * `deck_editor.py`: The GUI for adding/editing cards and assets.
-* `decks/`: Your flashcard data is stored here as simple JSON files.
+* `user_data/decks/`: Your flashcard data is stored here as simple JSON files.
+* `user_data/assets/`: Stores user-assets like audio and images added to flashcards.
+* `user_data/backups/`: Stores *.zip files containing all the user database
 * `icons/`: The app logo is stored here.
-* `assets/`: Stores user-imported images and audio files.
+* `assets/`: Stores app-related asset files (audio/images).
 
 ## 🤝 Contributing
 
