@@ -58,19 +58,14 @@ fi
 # --- FIX 1: AVATARS (GDK PIXBUF LOADERS) ---
 echo "🖼️  Bundling Image Loaders (Fixes Avatars)..."
 mkdir -p AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
-# Copy loaders
 cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/
 
-# FIND THE QUERY TOOL (The Fix)
-# On Ubuntu 24.04, this tool is hidden in /usr/lib/... not /usr/bin
+# Find and run the query tool
 QUERY_LOADERS=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
-
 if [ -z "$QUERY_LOADERS" ]; then
     echo "❌ Error: Could not find gdk-pixbuf-query-loaders tool."
     exit 1
 fi
-
-echo "Using query tool at: $QUERY_LOADERS"
 "$QUERY_LOADERS" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 sed -i 's|AppDir/||g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
@@ -116,9 +111,9 @@ export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIB
 # 3. FIX IMAGES
 export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 
-# 4. FIX THEME
+# 4. FIX THEME (FORCE DARK MODE)
 export ADW_DISABLE_PORTAL=1
-export GTK_THEME=Adwaita
+export GTK_THEME=Adwaita:dark  # <--- FORCE DARK THEME HERE
 
 # 5. ISOLATE MODULES
 export GIO_MODULE_DIR="$APPDIR/usr/lib/gio/modules"
@@ -138,13 +133,23 @@ chmod +x AppDir/AppRun
 echo "📦 Phase 3: Packing AppImage..."
 
 export DEPLOY_GTK_VERSION=4
+
+# 1. Find LibAdwaita
 LIBADWAITA_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libadwaita-1.so.0" | head -n 1)
 
+# 2. Find Librsvg (THE MISSING LINK FOR AVATARS/ICONS)
+LIBRSVG_PATH=$(find /usr/lib/x86_64-linux-gnu -name "librsvg-2.so.2" | head -n 1)
+
+echo "🔍 Found LibAdwaita: $LIBADWAITA_PATH"
+echo "🔍 Found Librsvg: $LIBRSVG_PATH"
+
+# 3. Bundle EVERYTHING
 linuxdeploy \
   --appdir AppDir \
   --plugin gtk \
   --executable AppDir/usr/bin/python3 \
   --library "$LIBADWAITA_PATH" \
+  --library "$LIBRSVG_PATH" \
   --icon-file assets/icons/io.github.dagaza.FlipStack.svg \
   --desktop-file io.github.dagaza.FlipStack.desktop \
   --output appimage
