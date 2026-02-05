@@ -98,6 +98,8 @@ LIBS=(
 LIB_ARGS=""
 for lib in "${LIBS[@]}"; do LIB_ARGS="$LIB_ARGS --library $lib"; done
 
+export DEPLOY_GTK_VERSION=4
+
 # RUN WITHOUT OUTPUT FLAG (Just populates the folder)
 ./linuxdeploy-x86_64.AppImage \
   --appdir AppDir \
