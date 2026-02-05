@@ -45,19 +45,15 @@ if [ -d "$DYNLOAD_DIR" ]; then cp -r "$DYNLOAD_DIR" AppDir/usr/lib/python3.12/; 
 mkdir -p AppDir/usr/lib/girepository-1.0
 if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/; fi
 
-# --- FIX 1: ICONS & AVATARS (STATIC METHOD - RESTORED) ---
+# --- FIX 1: ICONS & AVATARS (STATIC) ---
 echo "🖼️  Bundling Image Loaders..."
 LOADER_DIR=AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 mkdir -p $LOADER_DIR
 cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so $LOADER_DIR/
 
-# Generate cache file NOW (Build time)
+# Generate cache
 QUERY_TOOL=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
 "$QUERY_TOOL" $LOADER_DIR/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
-
-# CHECKSUM FIX: Strip ALL paths. 
-# Converts "/long/path/to/libpixbufloader-svg.so" -> "libpixbufloader-svg.so"
-# This allows GDK to find the file in the adjacent folder regardless of where the AppImage is mounted.
 sed -i -E 's|"/[^"]*/([^/]+\.so)"|"\1"|g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
 # --- FIX 2: THEME RESOURCES ---
@@ -103,18 +99,29 @@ export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
 export GTK_DATA_PREFIX="$APPDIR/usr"
 export GTK_PATH="$APPDIR/usr/lib/gtk-4.0"
 
-# 2. KEYFILE BACKEND (Proven to work!)
+# 2. SETTINGS BACKEND (Keyfile = Persistent)
 export GSETTINGS_BACKEND=keyfile
-export XDG_CONFIG_HOME="/tmp/flipstack_config_$$"
+export XDG_CONFIG_HOME="/tmp/flipstack_appimage_config"
 mkdir -p "$XDG_CONFIG_HOME/glib-2.0/settings"
 
-# 3. STATIC AVATAR FIX (Restored)
+# 3. PORTAL & INPUT
+export ADW_DISABLE_PORTAL=1
+export GTK_IM_MODULE=gtk-im-context-simple
+
+# 4. FIX AVATARS
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 
-# 4. PORTAL & INPUT
-export ADW_DISABLE_PORTAL=1
-export GTK_IM_MODULE=gtk-im-context-simple
+# --- SCHEMA CHECK ---
+echo "🔍 Checking Schema..."
+if [ -f "$GSETTINGS_SCHEMA_DIR/gschemas.compiled" ]; then
+    echo "✅ Schema file exists."
+    # List keys to verify it works
+    gsettings list-keys org.gnome.desktop.interface | grep color-scheme
+else
+    echo "❌ CRITICAL: gschemas.compiled is MISSING."
+fi
+# --------------------
 
 # 5. LAUNCH
 exec "$APPDIR/usr/bin/python3" -m main "$@"
@@ -123,7 +130,7 @@ EOF
 chmod +x AppDir/AppRun
 
 # =========================================================
-# PHASE 3: PACK (With Schema Protection)
+# PHASE 3: PACK
 # =========================================================
 echo "📦 Phase 3: Packing..."
 
@@ -144,21 +151,10 @@ LIBS=(
   $(find_lib "libthai.so.0")
 )
 
-# Convert array to --library args
 LIB_ARGS=""
-for lib in "${LIBS[@]}"; do
-  LIB_ARGS="$LIB_ARGS --library $lib"
-done
+for lib in "${LIBS[@]}"; do LIB_ARGS="$LIB_ARGS --library $lib"; done
 
-# 1. PRE-COMPILE SCHEMAS MANUALLY
-# We copy the schema NOW, to ensure it exists before linuxdeploy runs
-echo "⚙️  Installing Schemas..."
-mkdir -p AppDir/usr/share/glib-2.0/schemas
-cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
-SCHEMA_SRC=$(find /usr/share/glib-2.0/schemas -name "*org.gnome.desktop.interface.gschema.xml" | head -n 1)
-if [ -n "$SCHEMA_SRC" ]; then cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/; fi
-
-# 2. RUN LINUXDEPLOY
+# 1. RUN LINUXDEPLOY (Let it do its thing)
 linuxdeploy \
   --appdir AppDir \
   --plugin gtk \
@@ -168,20 +164,32 @@ linuxdeploy \
   --desktop-file io.github.dagaza.FlipStack.desktop \
   --output appimage
 
-# 3. POST-COMPILE SCHEMAS (The Fortress Fix)
-# We re-copy and re-compile AFTER linuxdeploy to ensure they aren't overwritten
-echo "🔒 Re-applying Schemas after linuxdeploy..."
-cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
-if [ -n "$SCHEMA_SRC" ]; then cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/; fi
+# 2. THE FINAL FIX: Force-Install and Compile Schemas AFTER linuxdeploy
+# This ensures linuxdeploy doesn't delete them or overwrite them
+echo "🔒 Securing Schemas (Post-Build)..."
+mkdir -p AppDir/usr/share/glib-2.0/schemas
 
-# Create Override
+# A. Copy standard schemas
+cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
+
+# B. Copy the CRITICAL gnome-desktop schema (required for Dark Mode)
+SCHEMA_SRC=$(find /usr/share/glib-2.0/schemas -name "*org.gnome.desktop.interface.gschema.xml" | head -n 1)
+if [ -n "$SCHEMA_SRC" ]; then
+    cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/
+    echo "✅ Copied org.gnome.desktop.interface schema"
+else
+    echo "❌ Error: Could not find org.gnome.desktop.interface schema!"
+    exit 1
+fi
+
+# C. Apply Dark Mode Override
 cat > AppDir/usr/share/glib-2.0/schemas/99_flipstack.gschema.override << 'EOF'
 [org.gnome.desktop.interface]
 color-scheme='prefer-dark'
 gtk-theme='Adwaita'
 EOF
 
-# Final Compile inside the AppDir
+# D. Compile!
 glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
 
-echo "🎉 Success! AppImage packed and schemas secured."
+echo "🎉 Success! Schemas are compiled and locked."
