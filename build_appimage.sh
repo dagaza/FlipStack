@@ -9,11 +9,10 @@ export PATH="$REPO_ROOT/bin:$PATH"
 # 2. CLEANUP
 rm -rf AppDir FlipStack*.AppImage
 
-# 3. DOWNLOAD TOOLS (NOW INCLUDING APPIMAGETOOL)
+# 3. DOWNLOAD TOOLS
 echo "⬇️  Downloading Build Tools..."
 wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
 wget -q https://github.com/niess/linuxdeploy-plugin-python/releases/download/continuous/linuxdeploy-plugin-python-x86_64.AppImage
-# NEW: Download the packer explicitly
 wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
 
 chmod +x linuxdeploy*.AppImage appimagetool*.AppImage
@@ -30,6 +29,11 @@ mkdir -p AppDir/usr/share/applications
 mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
 cp io.github.dagaza.FlipStack.desktop AppDir/usr/share/applications/
 cp assets/icons/io.github.dagaza.FlipStack.svg AppDir/usr/share/icons/hicolor/scalable/apps/
+
+# --- FIX: UPDATE DESKTOP FILE ---
+# This line was missing! It points the app to our script instead of a missing binary.
+sed -i 's|^Exec=.*|Exec=AppRun|' AppDir/usr/share/applications/io.github.dagaza.FlipStack.desktop
+# --------------------------------
 
 export VERSION="1.0.0"
 
@@ -81,6 +85,12 @@ EOF
 # =========================================================
 echo "⚙️  Running LinuxDeploy (Preparation Only)..."
 
+# --- FIX: CREATE DUMMY APPRUN ---
+# LinuxDeploy checks if Exec=AppRun exists. We create a fake one to pass the check.
+touch AppDir/AppRun
+chmod +x AppDir/AppRun
+# --------------------------------
+
 # Helper to find libs
 find_lib() { find /usr/lib/x86_64-linux-gnu -name "$1" | head -n 1; }
 
@@ -100,7 +110,6 @@ for lib in "${LIBS[@]}"; do LIB_ARGS="$LIB_ARGS --library $lib"; done
 
 export DEPLOY_GTK_VERSION=4
 
-# RUN WITHOUT OUTPUT FLAG (Just populates the folder)
 ./linuxdeploy-x86_64.AppImage \
   --appdir AppDir \
   --plugin gtk \
