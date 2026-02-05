@@ -69,8 +69,7 @@ fi
 # Generate Cache
 "$QUERY_LOADERS" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
-# CHECKSUM FIX: Robust Regex to strip absolute paths
-# Converts "/usr/lib/.../libpixbufloader-svg.so" to just "libpixbufloader-svg.so"
+# CHECKSUM FIX: Strip absolute paths so GDK looks in the AppRun defined folder
 sed -i -E 's|"/[^"]*/([^/]+\.so)"|"\1"|g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
 # --- FIX 2: UI THEME (CONFIG & SCHEMAS) ---
@@ -79,7 +78,7 @@ mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
 cp -r /usr/share/icons/hicolor AppDir/usr/share/icons/
 
-# Create Settings File (REMOVED THE OFFENDING LINE)
+# Create Settings File (Clean version)
 mkdir -p AppDir/usr/etc/gtk-4.0
 cat > AppDir/usr/etc/gtk-4.0/settings.ini << 'EOF'
 [Settings]
@@ -117,10 +116,10 @@ export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 
 # 3. FIX UI & TOGGLE BUTTON
-# Load our clean settings.ini
 export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
-# Disable the system portal so the app handles its own theme switching
 export ADW_DISABLE_PORTAL=1
+# CRITICAL FIX: Use memory backend so the toggle works without needing host dconf
+export GSETTINGS_BACKEND=memory
 
 # 4. FIX AVATARS
 export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
@@ -145,21 +144,23 @@ echo "📦 Phase 3: Packing AppImage..."
 
 export DEPLOY_GTK_VERSION=4
 
-# 1. Find Main Libraries
+# 1. Find Core Libraries
 LIBADWAITA_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libadwaita-1.so.0" | head -n 1)
 LIBRSVG_PATH=$(find /usr/lib/x86_64-linux-gnu -name "librsvg-2.so.2" | head -n 1)
 
-# 2. Find the SVG LOADER (The Secret Ingredient)
-# We find the specific .so file for SVG loading
+# 2. Find SVG Loader & Dependencies (THE AVATAR FIX)
 SVG_LOADER_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libpixbufloader-svg.so" | head -n 1)
+LIBXML2_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libxml2.so.2" | head -n 1)
+LIBCAIRO_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libcairo.so.2" | head -n 1)
 
-echo "🔍 Found LibAdwaita: $LIBADWAITA_PATH"
-echo "🔍 Found Librsvg: $LIBRSVG_PATH"
-echo "🔍 Found SVG Loader: $SVG_LOADER_PATH"
+echo "🔍 Found Dependencies:"
+echo "   - Adwaita: $LIBADWAITA_PATH"
+echo "   - Rsvg:    $LIBRSVG_PATH"
+echo "   - Loader:  $SVG_LOADER_PATH"
+echo "   - Xml2:    $LIBXML2_PATH"
 
 # 3. Bundle EVERYTHING
-# We pass the SVG_LOADER_PATH to --library so linuxdeploy inspects it
-# and bundles its hidden dependencies (libxml2, libcairo, etc.)
+# We explicitly bundle libxml2 and libcairo to ensure the SVG loader doesn't crash
 linuxdeploy \
   --appdir AppDir \
   --plugin gtk \
@@ -167,6 +168,8 @@ linuxdeploy \
   --library "$LIBADWAITA_PATH" \
   --library "$LIBRSVG_PATH" \
   --library "$SVG_LOADER_PATH" \
+  --library "$LIBXML2_PATH" \
+  --library "$LIBCAIRO_PATH" \
   --icon-file assets/icons/io.github.dagaza.FlipStack.svg \
   --desktop-file io.github.dagaza.FlipStack.desktop \
   --output appimage
