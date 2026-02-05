@@ -46,7 +46,6 @@ mkdir -p AppDir/usr/lib/girepository-1.0
 if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/; fi
 
 # --- FIX 1: AVATARS (TOOLS) ---
-# We keep this because diagnostics confirmed it works!
 echo "🖼️  Bundling Image Loader Tools..."
 LOADER_DIR=AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 mkdir -p $LOADER_DIR
@@ -60,7 +59,6 @@ mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
 cp -r /usr/share/icons/hicolor AppDir/usr/share/icons/
 
-# Bundle GTK 4.0 Stylesheets (Kept this, it fixed the gray buttons)
 echo "🎨 Bundling GTK 4 Resources..."
 mkdir -p AppDir/usr/share/gtk-4.0
 if [ -d "/usr/share/gtk-4.0" ]; then
@@ -106,24 +104,34 @@ export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
 export GTK_DATA_PREFIX="$APPDIR/usr"
 export GTK_PATH="$APPDIR/usr/lib/gtk-4.0"
 
-# 2. THEME FIX (KEYFILE BACKEND)
-# Switch from 'memory' (broken/amnesia) to 'keyfile' (robust/persistent)
-export GSETTINGS_BACKEND=keyfile
+# 2. DEBUG MODE (The Loud Fix)
+export G_MESSAGES_DEBUG=all 
+export GTK_DEBUG=0
 
-# 3. SETUP KEYFILE STORAGE
-# We direct config to a temporary folder or user config to ensure write access
-# Using /tmp ensures we don't pollute the host system for now
+# 3. SETTINGS BACKEND (KEYFILE)
+export GSETTINGS_BACKEND=keyfile
 export XDG_CONFIG_HOME="/tmp/flipstack_config_$$"
 mkdir -p "$XDG_CONFIG_HOME/glib-2.0/settings"
 
-# 4. PORTAL & INPUT SETTINGS
+# 4. PORTAL & INPUT
 export ADW_DISABLE_PORTAL=1
 export GTK_IM_MODULE=gtk-im-context-simple
 
-# 5. RUNTIME CACHE (Avatars)
+# 5. RUNTIME CACHE
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 export GDK_PIXBUF_MODULE_FILE="/tmp/flipstack_loaders_$$.cache"
 "$APPDIR/usr/bin/gdk-pixbuf-query-loaders" "$GDK_PIXBUF_MODULEDIR"/*.so > "$GDK_PIXBUF_MODULE_FILE" 2>/dev/null
+
+# --- DIAGNOSTICS START ---
+echo "--- DEBUG PROBE ---"
+echo "Checking for 'color-scheme' key in schemas..."
+if grep -q "color-scheme" "$GSETTINGS_SCHEMA_DIR/gschemas.compiled"; then
+    echo "✅ 'color-scheme' key found in compiled schemas."
+else
+    echo "❌ CRITICAL: 'color-scheme' key MISSING in compiled schemas."
+fi
+echo "--- END PROBE ---"
+# --- DIAGNOSTICS END ---
 
 # 6. LAUNCH
 exec "$APPDIR/usr/bin/python3" -m main "$@"
@@ -137,21 +145,34 @@ chmod +x AppDir/AppRun
 echo "📦 Phase 3: Packing..."
 
 export DEPLOY_GTK_VERSION=4
-LIBADWAITA_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libadwaita-1.so.0" | head -n 1)
-LIBRSVG_PATH=$(find /usr/lib/x86_64-linux-gnu -name "librsvg-2.so.2" | head -n 1)
-SVG_LOADER_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libpixbufloader-svg.so" | head -n 1)
-LIBXML2_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libxml2.so.2" | head -n 1)
-LIBCAIRO_PATH=$(find /usr/lib/x86_64-linux-gnu -name "libcairo.so.2" | head -n 1)
+# Helper to find libs
+find_lib() { find /usr/lib/x86_64-linux-gnu -name "$1" | head -n 1; }
+
+LIBADWAITA=$(find_lib "libadwaita-1.so.0")
+LIBRSVG=$(find_lib "librsvg-2.so.2")
+SVG_LOADER=$(find_lib "libpixbufloader-svg.so")
+LIBXML2=$(find_lib "libxml2.so.2")
+LIBCAIRO=$(find_lib "libcairo.so.2")
+
+# SVG TEXT RENDERING DEPENDENCIES (New additions)
+LIBPANGO=$(find_lib "libpango-1.0.so.0")
+LIBPANGOCAIRO=$(find_lib "libpangocairo-1.0.so.0")
+LIBHARFBUZZ=$(find_lib "libharfbuzz.so.0")
+LIBTHAI=$(find_lib "libthai.so.0")
 
 linuxdeploy \
   --appdir AppDir \
   --plugin gtk \
   --executable AppDir/usr/bin/python3 \
-  --library "$LIBADWAITA_PATH" \
-  --library "$LIBRSVG_PATH" \
-  --library "$SVG_LOADER_PATH" \
-  --library "$LIBXML2_PATH" \
-  --library "$LIBCAIRO_PATH" \
+  --library "$LIBADWAITA" \
+  --library "$LIBRSVG" \
+  --library "$SVG_LOADER" \
+  --library "$LIBXML2" \
+  --library "$LIBCAIRO" \
+  --library "$LIBPANGO" \
+  --library "$LIBPANGOCAIRO" \
+  --library "$LIBHARFBUZZ" \
+  --library "$LIBTHAI" \
   --icon-file assets/icons/io.github.dagaza.FlipStack.svg \
   --desktop-file io.github.dagaza.FlipStack.desktop \
   --output appimage
