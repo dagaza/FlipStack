@@ -23,6 +23,17 @@ from gi.repository import Gtk, Adw, Gio, Gdk, GObject, GLib, Pango, PangoCairo
 class FlipStackWindow(Adw.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title="FlipStack")
+
+        # --- FIX TASKBAR ICON ---
+        # This tells the window manager: "I am io.github.dagaza.FlipStack"
+        # If this ID matches the .desktop file name, the icon will appear.
+        self.set_startup_id("io.github.dagaza.FlipStack")
+        
+        # For some GTK versions/desktops, we also need to set the program name
+        # to match the icon name registered in the system.
+        GLib.set_prgname("io.github.dagaza.FlipStack")
+        # ------------------------
+        
         self.set_size_request(1200, 900) 
 
         # --- THEME LOGIC START ---
