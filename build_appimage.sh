@@ -45,24 +45,24 @@ if [ -d "$DYNLOAD_DIR" ]; then cp -r "$DYNLOAD_DIR" AppDir/usr/lib/python3.12/; 
 mkdir -p AppDir/usr/lib/girepository-1.0
 if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/; fi
 
-# --- FIX 1: AVATARS (STRICT CACHE) ---
+# --- FIX 1: AVATARS (PREPARE CACHE TEMPLATE) ---
 echo "🖼️  Bundling Image Loaders..."
 LOADER_DIR=AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 mkdir -p $LOADER_DIR
 cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so $LOADER_DIR/
 
 QUERY_LOADERS=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
-"$QUERY_LOADERS" $LOADER_DIR/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+"$QUERY_LOADERS" $LOADER_DIR/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache.template
+# Strip absolute paths to create a clean template we can rewrite at runtime
+sed -i -E 's|"/[^"]*/([^/]+\.so)"|"\1"|g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache.template
 
-# CHECKSUM FIX: Strip the prefix so paths are just filenames
-sed -i "s|$(pwd)/AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/||g" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
-
-# --- FIX 2: THEME RESOURCES (SCHEMAS) ---
+# --- FIX 2: THEME RESOURCES (OVERRIDES) ---
 echo "🎨 Bundling Theme Resources..."
 mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
 cp -r /usr/share/icons/hicolor AppDir/usr/share/icons/
 
+# Create Settings File (Fallback)
 mkdir -p AppDir/usr/etc/gtk-4.0
 cat > AppDir/usr/etc/gtk-4.0/settings.ini << 'EOF'
 [Settings]
@@ -71,14 +71,22 @@ gtk-icon-theme-name=Adwaita
 gtk-xft-antialias=1
 EOF
 
-# VITAL: Copy Desktop Schemas (Required for Dark Mode/Color Scheme)
+# Copy Schemas & ADD OVERRIDE (This Fixes Light Mode)
 mkdir -p AppDir/usr/share/glib-2.0/schemas
-# Copy standard system schemas
 cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
+
+# Create the override file to force Dark Mode
+cat > AppDir/usr/share/glib-2.0/schemas/99_flipstack.gschema.override << 'EOF'
+[org.gnome.desktop.interface]
+color-scheme='prefer-dark'
+gtk-theme='Adwaita'
+EOF
+
+# Compile schemas with the override
 glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
 
 # =========================================================
-# PHASE 2: APPRUN
+# PHASE 2: APPRUN (Runtime Patching)
 # =========================================================
 echo "🔧 Writing AppRun script..."
 rm -f AppDir/AppRun
@@ -100,32 +108,18 @@ export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
 # 2. UI SETTINGS
 export ADW_DISABLE_PORTAL=1
 export GSETTINGS_BACKEND=memory
-
-# 3. IM MODULE (Fixes ibus warning)
 export GTK_IM_MODULE=gtk-im-context-simple
 
-# 4. AVATARS
-export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+# 3. RUNTIME AVATAR FIX (The "Nuclear" Option)
+# We read the template and inject the REAL absolute path of the AppImage mount
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
+export GDK_PIXBUF_MODULE_FILE="/tmp/flipstack_loaders.cache"
 
-# --- DIAGNOSTIC PROBE ---
-echo "========================================"
-echo "🔍 FLIPSTACK DIAGNOSTIC PROBE"
-echo "========================================"
-echo "📂 AppDir: $APPDIR"
+# Rewrite the cache file to /tmp with valid absolute paths
+sed "s|\"libpixbufloader-svg.so\"|\"$GDK_PIXBUF_MODULEDIR/libpixbufloader-svg.so\"|g" \
+    "$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache.template" > "$GDK_PIXBUF_MODULE_FILE"
 
-SVG_LOADER="$GDK_PIXBUF_MODULEDIR/libpixbufloader-svg.so"
-if [ -f "$SVG_LOADER" ]; then
-    echo "✅ SVG Loader found at: $SVG_LOADER"
-else
-    echo "❌ SVG Loader NOT FOUND"
-fi
-
-echo "📂 Content of loaders.cache:"
-cat "$GDK_PIXBUF_MODULE_FILE" | grep -A 5 "svg"
-echo "========================================"
-# --- END PROBE ---
-
+# 4. LAUNCH
 exec "$APPDIR/usr/bin/python3" -m main "$@"
 EOF
 
