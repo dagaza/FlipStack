@@ -1,6 +1,8 @@
-# FlipStack
+# FlipStack: Master Your Learning
 
-FlipStack is a modern, open-source Flashcard application built for Linux. It uses Spaced Repetition (SRS) to help you master any subject efficiently—from languages and history to math and programming. Built with Python and GTK4/LibAdwaita, it offers a clean, native experience on Linux Mint, Ubuntu, Fedora, and other modern distributions.
+**FlipStack** is a modern, distraction-free flashcard app designed to help you master any subject through the power of **Spaced Repetition (SRS)**.
+
+By utilizing a scientifically proven algorithm to halt the 'Forgetting Curve,' FlipStack calculates the perfect time for you to review a card, ensuring you memorize more in less time. Whether you are learning a new language, preparing for exams, or memorizing code syntax, FlipStack adapts to your pace to ensure long-term retention. Built with Python and GTK4/LibAdwaita, it offers a clean, native experience on Linux Mint, Ubuntu, Fedora, and other modern distributions.
 
 ![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/flashcard_front_light.png) 
 
