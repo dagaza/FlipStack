@@ -6,7 +6,7 @@ By utilizing a scientifically proven algorithm to halt the 'Forgetting Curve,' F
 
 ![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/flashcard_front_light.png) 
 
-### ✨ Key Features
+## ✨ Key Features
 
 **🧠 Smart Study Modes**
 * **Spaced Repetition:** Built on a Leitner-style algorithm that schedules reviews exactly when you need them.
