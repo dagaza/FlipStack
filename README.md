@@ -6,26 +6,55 @@ By utilizing a scientifically proven algorithm to halt the 'Forgetting Curve,' F
 
 ![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/flashcard_front_light.png) 
 
-## 🧠 Features
+### ✨ Key Features
 
-* **Smart Study Modes:**
-    * **Spaced Repetition:** Uses a Leitner-style system to schedule cards based on your performance.
-    * **Cram Mode:** Review an entire deck instantly, ignoring the schedule.
-    * **Reverse Mode:** Flip question/answer sides to test bidirectional knowledge.
-    * **Shuffle:** Randomize your session order.
-* **Rich Dashboard:** Visualize your consistency with a GitHub-style activity heatmap and streak counter.
-* **Deck Management:**
-    * Organize decks into custom **Categories**.
-    * **Import** from CSV files or other flashcard apps such as Anki (`.apkg`).
-    * **Export** your data to JSON or CSV.
-* **Powerful Editor:**
-    * Supports **Images** and **Audio**.
-    * Rich text support (Bold/Italic/Strikethrough/Code blocks via Markdown syntax).
-    * **Leech Management:** Automatically suspends cards you constantly miss.
-* **Customization:**
-    * Dark/Light mode toggle.
-    * Dynamic font family and size adjustments.
-    * Sound effects (toggleable).
+**🧠 Smart Study Modes**
+* **Spaced Repetition:** Built on a Leitner-style algorithm that schedules reviews exactly when you need them.
+* **Cram Mode:** Need to study *now*? Review entire decks instantly, ignoring the schedule.
+* **Reverse Mode:** Flip the question and answer sides to test your knowledge bidirectionally.
+* **Shuffle:** Randomize card order to prevent pattern matching.
+* **Hints:** Cards support optional hints that remain hidden until you need a nudge.
+
+**📊 Visual Progress Tracking**
+* **Activity Heatmap:** Visualize your daily consistency with a GitHub-style contribution graph.
+* **Streak Counter:** Stay motivated by watching your daily streak grow.
+* **Deck Analytics:** Drill down into specific decks to see daily accuracy charts and detailed logs of every past study session.
+* **Leech Management:** Automatically identifies and suspends cards you struggle with, letting you focus on fixing gaps.
+
+**🗂️ Powerful Card & Deck Management**
+* **Global Search:** Instantly find any card or tag across all your decks directly from the sidebar.
+* **Categories:** Keep your decks organized with custom tagging and categories.
+* **Backup & Export:** Export decks to CSV/JSON or create full ZIP backups of your entire library.
+* **CSV Support:** Import and export your data freely using standard CSV or JSON formats.
+* **Anki Import:** Moving from Anki? Import your existing `.apkg` files instantly.
+
+**🎨 Rich Editing & Customization**
+* **Multimedia Support:** Add **Images** and **Audio** to your cards for immersive learning. Includes a built-in audio player for pronunciation clips.
+* **Markdown Ready:** Use headers, bold, italic, strike-through, or add code blocks easily.
+* **Font Control:** Customize the font family and size globally with a live preview tool.
+* **Personalize It:** Toggle **Dark/Light mode**, adjust font sizes, and enable or disable the inbuilt sound effects to match your style.
+
+## 📥 How to Install (Recommended For Users)
+
+#### Option 1: AppImage (Universal)
+Runs on most Linux distributions (Ubuntu, Fedora, Mint, Arch, etc.).
+
+1. **Download** the `FlipStack-1.0.0-x86_64.AppImage` from the **[Releases](../../releases)** page.
+2. **Make it executable:**
+   * *Right-click file → Properties → Permissions → Check "Allow executing file as program"*
+   * *Or run via terminal:* `chmod +x FlipStack-1.0.0-x86_64.AppImage`
+3. **Double-click to launch!**
+
+> **💡 Pro Tip:** If you want FlipStack to appear in your system menu/launcher with the correct icon, we recommend installing **[AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher)**. It will automatically detect and integrate the AppImage for you.
+
+#### Option 2: Flatpak Bundle (Advanced)
+*Note: We are currently submitting FlipStack to Flathub! In the meantime, you can install the standalone bundle.*
+
+1. **Download** the `FlipStack.flatpak` file from the **[Releases](../../releases)** page.
+2. **Install via terminal:**
+```bash
+   flatpak install --user FlipStack.flatpak
+```
 
 ## 📦 Dependencies
 
@@ -44,44 +73,33 @@ sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 libgire
 sudo dnf install python3-gobject gtk4 libadwaita speech-dispatcher
 ```
 
-## 🚀 Installation & Running Locally from Source (For Developers)
+## 🚀 Running Locally from Source (For Developers)
 
 1. **Clone the repository:**
-   ```bash
+```bash
    git clone https://github.com/dagaza/FlipStack.git
    cd FlipStack
-   ```
+```
 
 2. **Set up a virtual environment (Optional but recommended):**
-   ```bash
+```bash
    python3 -m venv venv
    source venv/bin/activate
-   ```
+```
 
 3. **Install Python requirements:**
-   ```bash
+```bash
    pip install -r requirements.txt
-   ```
+```
 or 
-    ```bash
+```bash
     pip install -e .
-    ```
+```
 
 4. **Run the app:**
-   ```bash
+```bash
    python3 main.py
-   ```
-
-## 📥 Download & Install (Recommended For Users)
-
-You don't need to install Python or touch the terminal to run FlipStack.
-
-**Option A:** Flatpak: Search for "FlipStack" on Flathub or your Software Center.
-
-**Option B:** AppImage (Portable):
-* Download the .AppImage file from the Releases Page.
-* Right-click the file → Properties → Permissions → Check "Allow executing file as program".
-* Double-click to run!
+```
 
 ## 🛠️ Project Structure
 
