@@ -50,8 +50,6 @@ echo "🖼️  Bundling Image Loader Tools..."
 LOADER_DIR=AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 mkdir -p $LOADER_DIR
 cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so $LOADER_DIR/
-
-# We bundle the query tool itself so we can run it at startup!
 QUERY_TOOL=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
 cp "$QUERY_TOOL" AppDir/usr/bin/gdk-pixbuf-query-loaders
 
@@ -61,6 +59,14 @@ mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
 cp -r /usr/share/icons/hicolor AppDir/usr/share/icons/
 
+# CRITICAL FIX: Bundle GTK 4.0 Stylesheets (Fixes Square Buttons)
+echo "🎨 Bundling GTK 4 Resources..."
+mkdir -p AppDir/usr/share/gtk-4.0
+if [ -d "/usr/share/gtk-4.0" ]; then
+    cp -r /usr/share/gtk-4.0/* AppDir/usr/share/gtk-4.0/
+fi
+
+# Settings File
 mkdir -p AppDir/usr/etc/gtk-4.0
 cat > AppDir/usr/etc/gtk-4.0/settings.ini << 'EOF'
 [Settings]
@@ -69,32 +75,16 @@ gtk-icon-theme-name=Adwaita
 gtk-xft-antialias=1
 EOF
 
-# CRITICAL FIX: Find and copy the actual Desktop Schemas
+# Schemas (Retaining schema copy for theme logic)
 echo "⚙️  Bundling Desktop Schemas..."
 mkdir -p AppDir/usr/share/glib-2.0/schemas
-# Copy standard system schemas (existing step)
 cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
-
-# Explicitly find the gnome-desktop schema (required for color-scheme)
 SCHEMA_SRC=$(find /usr/share/glib-2.0/schemas -name "*org.gnome.desktop.interface.gschema.xml" | head -n 1)
-if [ -n "$SCHEMA_SRC" ]; then
-    cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/
-    echo "✅ Found and bundled org.gnome.desktop.interface schema"
-else
-    echo "⚠️ WARNING: Could not find org.gnome.desktop.interface schema!"
-fi
-
-# Override to force Dark Mode default
-cat > AppDir/usr/share/glib-2.0/schemas/99_flipstack.gschema.override << 'EOF'
-[org.gnome.desktop.interface]
-color-scheme='prefer-dark'
-gtk-theme='Adwaita'
-EOF
-
+if [ -n "$SCHEMA_SRC" ]; then cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/; fi
 glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
 
 # =========================================================
-# PHASE 2: APPRUN (Diagnostic Edition)
+# PHASE 2: APPRUN
 # =========================================================
 echo "🔧 Writing AppRun script..."
 rm -f AppDir/AppRun
@@ -113,49 +103,22 @@ export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
 
-# 2. UI SETTINGS
+# 2. GTK RESOURCE PATHS (Fixes Square Buttons)
+# Forces GTK to look inside AppDir for its standard css/assets
+export GTK_DATA_PREFIX="$APPDIR/usr"
+export GTK_PATH="$APPDIR/usr/lib/gtk-4.0"
+
+# 3. UI SETTINGS
 export ADW_DISABLE_PORTAL=1
 export GSETTINGS_BACKEND=memory
 export GTK_IM_MODULE=gtk-im-context-simple
 
-# 3. RUNTIME AVATAR FIX (The Real Fix)
-# We generate the cache file NOW, inside the running AppImage
+# 4. RUNTIME CACHE (Avatars)
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 export GDK_PIXBUF_MODULE_FILE="/tmp/flipstack_loaders_$$.cache"
-
-# Run the bundled query tool to generate a perfect cache for this session
 "$APPDIR/usr/bin/gdk-pixbuf-query-loaders" "$GDK_PIXBUF_MODULEDIR"/*.so > "$GDK_PIXBUF_MODULE_FILE" 2>/dev/null
 
-# --- DIAGNOSTIC PROBE START ---
-echo "========================================"
-echo "🔍 FLIPSTACK DIAGNOSTIC PROBE"
-echo "========================================"
-echo "📂 AppDir: $APPDIR"
-
-# Check 1: SVG Loader
-SVG_LOADER="$GDK_PIXBUF_MODULEDIR/libpixbufloader-svg.so"
-if [ -f "$SVG_LOADER" ]; then
-    echo "✅ SVG Loader file exists."
-else
-    echo "❌ SVG Loader file MISSING!"
-fi
-
-# Check 2: Cache Content
-echo "🔍 Checking generated cache ($GDK_PIXBUF_MODULE_FILE):"
-if grep -q "svg" "$GDK_PIXBUF_MODULE_FILE"; then
-    echo "✅ Cache contains SVG entry."
-else
-    echo "❌ Cache does NOT contain SVG entry."
-    cat "$GDK_PIXBUF_MODULE_FILE"
-fi
-
-# Check 3: Dependencies
-echo "🔍 Checking critical libraries:"
-ldd "$SVG_LOADER" | grep -E "libxml2|librsvg|libcairo"
-
-echo "========================================"
-# --- DIAGNOSTIC PROBE END ---
-
+# 5. LAUNCH
 exec "$APPDIR/usr/bin/python3" -m main "$@"
 EOF
 
