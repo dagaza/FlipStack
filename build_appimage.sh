@@ -46,6 +46,7 @@ mkdir -p AppDir/usr/lib/girepository-1.0
 if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/; fi
 
 # --- FIX 1: AVATARS (TOOLS) ---
+# We keep this because diagnostics confirmed it works!
 echo "🖼️  Bundling Image Loader Tools..."
 LOADER_DIR=AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 mkdir -p $LOADER_DIR
@@ -59,7 +60,7 @@ mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
 cp -r /usr/share/icons/hicolor AppDir/usr/share/icons/
 
-# CRITICAL FIX: Bundle GTK 4.0 Stylesheets (Fixes Square Buttons)
+# Bundle GTK 4.0 Stylesheets (Kept this, it fixed the gray buttons)
 echo "🎨 Bundling GTK 4 Resources..."
 mkdir -p AppDir/usr/share/gtk-4.0
 if [ -d "/usr/share/gtk-4.0" ]; then
@@ -75,7 +76,7 @@ gtk-icon-theme-name=Adwaita
 gtk-xft-antialias=1
 EOF
 
-# Schemas (Retaining schema copy for theme logic)
+# Schemas
 echo "⚙️  Bundling Desktop Schemas..."
 mkdir -p AppDir/usr/share/glib-2.0/schemas
 cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
@@ -102,23 +103,29 @@ export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEM
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
-
-# 2. GTK RESOURCE PATHS (Fixes Square Buttons)
-# Forces GTK to look inside AppDir for its standard css/assets
 export GTK_DATA_PREFIX="$APPDIR/usr"
 export GTK_PATH="$APPDIR/usr/lib/gtk-4.0"
 
-# 3. UI SETTINGS
+# 2. THEME FIX (KEYFILE BACKEND)
+# Switch from 'memory' (broken/amnesia) to 'keyfile' (robust/persistent)
+export GSETTINGS_BACKEND=keyfile
+
+# 3. SETUP KEYFILE STORAGE
+# We direct config to a temporary folder or user config to ensure write access
+# Using /tmp ensures we don't pollute the host system for now
+export XDG_CONFIG_HOME="/tmp/flipstack_config_$$"
+mkdir -p "$XDG_CONFIG_HOME/glib-2.0/settings"
+
+# 4. PORTAL & INPUT SETTINGS
 export ADW_DISABLE_PORTAL=1
-export GSETTINGS_BACKEND=memory
 export GTK_IM_MODULE=gtk-im-context-simple
 
-# 4. RUNTIME CACHE (Avatars)
+# 5. RUNTIME CACHE (Avatars)
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 export GDK_PIXBUF_MODULE_FILE="/tmp/flipstack_loaders_$$.cache"
 "$APPDIR/usr/bin/gdk-pixbuf-query-loaders" "$GDK_PIXBUF_MODULEDIR"/*.so > "$GDK_PIXBUF_MODULE_FILE" 2>/dev/null
 
-# 5. LAUNCH
+# 6. LAUNCH
 exec "$APPDIR/usr/bin/python3" -m main "$@"
 EOF
 
