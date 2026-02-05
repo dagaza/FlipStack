@@ -45,7 +45,7 @@ if [ -d "$DYNLOAD_DIR" ]; then cp -r "$DYNLOAD_DIR" AppDir/usr/lib/python3.12/; 
 mkdir -p AppDir/usr/lib/girepository-1.0
 if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/; fi
 
-# --- FIX 1: AVATARS & LOADERS ---
+# --- FIX 1: AVATARS (STRICT CACHE) ---
 echo "🖼️  Bundling Image Loaders..."
 LOADER_DIR=AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 mkdir -p $LOADER_DIR
@@ -53,9 +53,11 @@ cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so $LOADER_DIR/
 
 QUERY_LOADERS=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
 "$QUERY_LOADERS" $LOADER_DIR/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
-sed -i -E 's|"/[^"]*/([^/]+\.so)"|"\1"|g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
-# --- FIX 2: THEME RESOURCES ---
+# CHECKSUM FIX: Strip the prefix so paths are just filenames
+sed -i "s|$(pwd)/AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/||g" AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+
+# --- FIX 2: THEME RESOURCES (SCHEMAS) ---
 echo "🎨 Bundling Theme Resources..."
 mkdir -p AppDir/usr/share/icons
 cp -r /usr/share/icons/Adwaita AppDir/usr/share/icons/
@@ -69,12 +71,14 @@ gtk-icon-theme-name=Adwaita
 gtk-xft-antialias=1
 EOF
 
+# VITAL: Copy Desktop Schemas (Required for Dark Mode/Color Scheme)
 mkdir -p AppDir/usr/share/glib-2.0/schemas
+# Copy standard system schemas
 cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
 glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
 
 # =========================================================
-# PHASE 2: DIAGNOSTIC APPRUN (The New Stuff)
+# PHASE 2: APPRUN
 # =========================================================
 echo "🔧 Writing AppRun script..."
 rm -f AppDir/AppRun
@@ -92,35 +96,35 @@ export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas:$GSETTINGS_SCHEM
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0:$GI_TYPELIB_PATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$APPDIR/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
 export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
+
+# 2. UI SETTINGS
 export ADW_DISABLE_PORTAL=1
 export GSETTINGS_BACKEND=memory
+
+# 3. IM MODULE (Fixes ibus warning)
+export GTK_IM_MODULE=gtk-im-context-simple
+
+# 4. AVATARS
 export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 
-# --- DIAGNOSTIC PROBE START ---
+# --- DIAGNOSTIC PROBE ---
 echo "========================================"
 echo "🔍 FLIPSTACK DIAGNOSTIC PROBE"
 echo "========================================"
 echo "📂 AppDir: $APPDIR"
 
-# Check if SVG loader exists
 SVG_LOADER="$GDK_PIXBUF_MODULEDIR/libpixbufloader-svg.so"
 if [ -f "$SVG_LOADER" ]; then
     echo "✅ SVG Loader found at: $SVG_LOADER"
-    
-    # CRITICAL: Check what libraries the SVG loader is missing
-    echo "🔍 Checking dependencies for SVG Loader:"
-    ldd "$SVG_LOADER" | grep "not found"
-    
-    # Also show where it resolves libxml2 and librsvg
-    echo "🔍 SVG Loader linking:"
-    ldd "$SVG_LOADER" | grep -E "libxml2|librsvg|libcairo"
 else
-    echo "❌ SVG Loader NOT FOUND in $GDK_PIXBUF_MODULEDIR"
+    echo "❌ SVG Loader NOT FOUND"
 fi
 
+echo "📂 Content of loaders.cache:"
+cat "$GDK_PIXBUF_MODULE_FILE" | grep -A 5 "svg"
 echo "========================================"
-# --- DIAGNOSTIC PROBE END ---
+# --- END PROBE ---
 
 exec "$APPDIR/usr/bin/python3" -m main "$@"
 EOF
