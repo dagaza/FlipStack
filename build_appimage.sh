@@ -45,13 +45,20 @@ if [ -d "$DYNLOAD_DIR" ]; then cp -r "$DYNLOAD_DIR" AppDir/usr/lib/python3.12/; 
 mkdir -p AppDir/usr/lib/girepository-1.0
 if [ -d "/usr/lib/x86_64-linux-gnu/girepository-1.0" ]; then cp -r /usr/lib/x86_64-linux-gnu/girepository-1.0/* AppDir/usr/lib/girepository-1.0/; fi
 
-# --- FIX 1: AVATARS (TOOLS) ---
-echo "🖼️  Bundling Image Loader Tools..."
+# --- FIX 1: ICONS & AVATARS (STATIC METHOD - RESTORED) ---
+echo "🖼️  Bundling Image Loaders..."
 LOADER_DIR=AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders
 mkdir -p $LOADER_DIR
 cp /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/*.so $LOADER_DIR/
+
+# Generate cache file NOW (Build time)
 QUERY_TOOL=$(find /usr -name gdk-pixbuf-query-loaders* -type f -executable 2>/dev/null | head -n 1)
-cp "$QUERY_TOOL" AppDir/usr/bin/gdk-pixbuf-query-loaders
+"$QUERY_TOOL" $LOADER_DIR/*.so > AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+
+# CHECKSUM FIX: Strip ALL paths. 
+# Converts "/long/path/to/libpixbufloader-svg.so" -> "libpixbufloader-svg.so"
+# This allows GDK to find the file in the adjacent folder regardless of where the AppImage is mounted.
+sed -i -E 's|"/[^"]*/([^/]+\.so)"|"\1"|g' AppDir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
 
 # --- FIX 2: THEME RESOURCES ---
 echo "🎨 Bundling Theme Resources..."
@@ -73,14 +80,6 @@ gtk-theme-name=Adwaita
 gtk-icon-theme-name=Adwaita
 gtk-xft-antialias=1
 EOF
-
-# Schemas
-echo "⚙️  Bundling Desktop Schemas..."
-mkdir -p AppDir/usr/share/glib-2.0/schemas
-cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
-SCHEMA_SRC=$(find /usr/share/glib-2.0/schemas -name "*org.gnome.desktop.interface.gschema.xml" | head -n 1)
-if [ -n "$SCHEMA_SRC" ]; then cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/; fi
-glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
 
 # =========================================================
 # PHASE 2: APPRUN
@@ -104,43 +103,27 @@ export XDG_CONFIG_DIRS="$APPDIR/usr/etc:$XDG_CONFIG_DIRS"
 export GTK_DATA_PREFIX="$APPDIR/usr"
 export GTK_PATH="$APPDIR/usr/lib/gtk-4.0"
 
-# 2. DEBUG MODE (The Loud Fix)
-export G_MESSAGES_DEBUG=all 
-export GTK_DEBUG=0
-
-# 3. SETTINGS BACKEND (KEYFILE)
+# 2. KEYFILE BACKEND (Proven to work!)
 export GSETTINGS_BACKEND=keyfile
 export XDG_CONFIG_HOME="/tmp/flipstack_config_$$"
 mkdir -p "$XDG_CONFIG_HOME/glib-2.0/settings"
+
+# 3. STATIC AVATAR FIX (Restored)
+export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
+export GDK_PIXBUF_MODULE_FILE="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 
 # 4. PORTAL & INPUT
 export ADW_DISABLE_PORTAL=1
 export GTK_IM_MODULE=gtk-im-context-simple
 
-# 5. RUNTIME CACHE
-export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
-export GDK_PIXBUF_MODULE_FILE="/tmp/flipstack_loaders_$$.cache"
-"$APPDIR/usr/bin/gdk-pixbuf-query-loaders" "$GDK_PIXBUF_MODULEDIR"/*.so > "$GDK_PIXBUF_MODULE_FILE" 2>/dev/null
-
-# --- DIAGNOSTICS START ---
-echo "--- DEBUG PROBE ---"
-echo "Checking for 'color-scheme' key in schemas..."
-if grep -q "color-scheme" "$GSETTINGS_SCHEMA_DIR/gschemas.compiled"; then
-    echo "✅ 'color-scheme' key found in compiled schemas."
-else
-    echo "❌ CRITICAL: 'color-scheme' key MISSING in compiled schemas."
-fi
-echo "--- END PROBE ---"
-# --- DIAGNOSTICS END ---
-
-# 6. LAUNCH
+# 5. LAUNCH
 exec "$APPDIR/usr/bin/python3" -m main "$@"
 EOF
 
 chmod +x AppDir/AppRun
 
 # =========================================================
-# PHASE 3: PACK
+# PHASE 3: PACK (With Schema Protection)
 # =========================================================
 echo "📦 Phase 3: Packing..."
 
@@ -148,31 +131,57 @@ export DEPLOY_GTK_VERSION=4
 # Helper to find libs
 find_lib() { find /usr/lib/x86_64-linux-gnu -name "$1" | head -n 1; }
 
-LIBADWAITA=$(find_lib "libadwaita-1.so.0")
-LIBRSVG=$(find_lib "librsvg-2.so.2")
-SVG_LOADER=$(find_lib "libpixbufloader-svg.so")
-LIBXML2=$(find_lib "libxml2.so.2")
-LIBCAIRO=$(find_lib "libcairo.so.2")
+# Gather Libraries
+LIBS=(
+  $(find_lib "libadwaita-1.so.0")
+  $(find_lib "librsvg-2.so.2")
+  $(find_lib "libpixbufloader-svg.so")
+  $(find_lib "libxml2.so.2")
+  $(find_lib "libcairo.so.2")
+  $(find_lib "libpango-1.0.so.0")
+  $(find_lib "libpangocairo-1.0.so.0")
+  $(find_lib "libharfbuzz.so.0")
+  $(find_lib "libthai.so.0")
+)
 
-# SVG TEXT RENDERING DEPENDENCIES (New additions)
-LIBPANGO=$(find_lib "libpango-1.0.so.0")
-LIBPANGOCAIRO=$(find_lib "libpangocairo-1.0.so.0")
-LIBHARFBUZZ=$(find_lib "libharfbuzz.so.0")
-LIBTHAI=$(find_lib "libthai.so.0")
+# Convert array to --library args
+LIB_ARGS=""
+for lib in "${LIBS[@]}"; do
+  LIB_ARGS="$LIB_ARGS --library $lib"
+done
 
+# 1. PRE-COMPILE SCHEMAS MANUALLY
+# We copy the schema NOW, to ensure it exists before linuxdeploy runs
+echo "⚙️  Installing Schemas..."
+mkdir -p AppDir/usr/share/glib-2.0/schemas
+cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
+SCHEMA_SRC=$(find /usr/share/glib-2.0/schemas -name "*org.gnome.desktop.interface.gschema.xml" | head -n 1)
+if [ -n "$SCHEMA_SRC" ]; then cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/; fi
+
+# 2. RUN LINUXDEPLOY
 linuxdeploy \
   --appdir AppDir \
   --plugin gtk \
   --executable AppDir/usr/bin/python3 \
-  --library "$LIBADWAITA" \
-  --library "$LIBRSVG" \
-  --library "$SVG_LOADER" \
-  --library "$LIBXML2" \
-  --library "$LIBCAIRO" \
-  --library "$LIBPANGO" \
-  --library "$LIBPANGOCAIRO" \
-  --library "$LIBHARFBUZZ" \
-  --library "$LIBTHAI" \
+  $LIB_ARGS \
   --icon-file assets/icons/io.github.dagaza.FlipStack.svg \
   --desktop-file io.github.dagaza.FlipStack.desktop \
   --output appimage
+
+# 3. POST-COMPILE SCHEMAS (The Fortress Fix)
+# We re-copy and re-compile AFTER linuxdeploy to ensure they aren't overwritten
+echo "🔒 Re-applying Schemas after linuxdeploy..."
+cp /usr/share/glib-2.0/schemas/*.xml AppDir/usr/share/glib-2.0/schemas/
+if [ -n "$SCHEMA_SRC" ]; then cp "$SCHEMA_SRC" AppDir/usr/share/glib-2.0/schemas/; fi
+
+# Create Override
+cat > AppDir/usr/share/glib-2.0/schemas/99_flipstack.gschema.override << 'EOF'
+[org.gnome.desktop.interface]
+color-scheme='prefer-dark'
+gtk-theme='Adwaita'
+EOF
+
+# Final Compile inside the AppDir
+glib-compile-schemas AppDir/usr/share/glib-2.0/schemas
+
+echo "🎉 Success! AppImage packed and schemas secured."
