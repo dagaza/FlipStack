@@ -202,4 +202,4 @@ echo "📦 Phase 4: Packing AppImage..."
 # We must use appimagetool explicitly now
 ./appimagetool-x86_64.AppImage AppDir FlipStack-x86_64.AppImage
 
-echo "🎉 Success! Created FlipStack-x86_64.AppImage"
+echo "🎉 Success! Created FlipStack-1.0.0-x86_64.AppImage"
