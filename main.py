@@ -206,6 +206,10 @@ class FlipStackWindow(Adw.ApplicationWindow):
         # 2. Controls
         sl_fonts = Gtk.StringList.new(font_names)
         dropdown = Gtk.DropDown(model=sl_fonts, enable_search=True)
+
+        # FIX: Tell the dropdown to search the "string" property of the items
+        expression = Gtk.PropertyExpression.new(Gtk.StringObject, None, "string")
+        dropdown.set_expression(expression)
         try:
             dropdown.set_selected(font_names.index(curr_font))
         except ValueError:

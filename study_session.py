@@ -224,6 +224,14 @@ class StudySession(Gtk.Box):
         # --- NEW LOGIC END ---
         if not self.cards: self.card_stack.set_visible_child_name("empty"); return
 
+        # --- FIX: ADDED SOUND ---
+        if self.current_index >= len(self.cards): 
+            self.card_stack.set_visible_child_name("done")
+            self.lbl_progress.set_label(f"{total} / {total}")
+            self.play_sound("cheering")  # <--- Play sound on completion
+            return
+        # -------------------
+
         if self.current_index >= len(self.cards): self.card_stack.set_visible_child_name("done"); self.lbl_progress.set_label(f"{total} / {total}"); return
         card = self.cards[self.current_index]
         f_text = card["back"] if self.is_reverse_mode else card["front"]; b_text = card["front"] if self.is_reverse_mode else card["back"]
@@ -296,7 +304,9 @@ class StudySession(Gtk.Box):
         sound_map = {
             "good": os.path.join(app_assets_dir, "good.oga"),
             "miss": os.path.join(app_assets_dir, "miss.oga"),
-            "flip": os.path.join(app_assets_dir, "flip.wav")
+            "flip": os.path.join(app_assets_dir, "flip.wav"),
+            #New: Cheering sound on session complete
+            "cheering": os.path.join(app_assets_dir, "cheering.wav")
         }
 
         # 3. Play
@@ -341,9 +351,20 @@ class StudySession(Gtk.Box):
         rem = self.cards[self.current_index:]; done = self.cards[:self.current_index]; random.shuffle(rem); self.cards = done + rem; self.refresh_view(); toast = Adw.Toast.new("Cards Shuffled"); self.get_root().get_content().add_toast(toast)
     
     def on_key_pressed(self, controller, keyval, keycode, state):
-        if keyval == Gdk.KEY_space and not self.is_flipped: self.flip_card(); return True
+        if keyval == Gdk.KEY_space and not self.is_flipped: 
+            self.flip_card()
+            return True
+            
         if self.is_flipped:
-            if keyval == Gdk.KEY_1: self.rate_card(3); return True
+            if keyval == Gdk.KEY_1:
+                # FIX: Check if hint was used before allowing "Good"
+                if self.hint_used:
+                    # Optional: Visual feedback that it's disabled
+                    toast = Adw.Toast.new("Cannot score 'Good' when Hint is used.")
+                    self.get_root().get_content().add_toast(toast)
+                    return True
+                self.rate_card(3)
+                return True
             if keyval == Gdk.KEY_2: self.rate_card(2); return True
             if keyval == Gdk.KEY_3: self.rate_card(1); return True
         return False

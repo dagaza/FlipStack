@@ -570,8 +570,14 @@ def import_anki_apkg(path, name):
                     back_raw = fields[1]
                     img_match = re.search(r'<img src="([^"]+)"', front_raw + back_raw)
                     image_file = img_match.group(1) if img_match else None
-                    clean_f = re.sub(r'<[^>]+>', '', front_raw).strip()
-                    clean_b = re.sub(r'<[^>]+>', '', back_raw).strip()
+                    # OLD LINE:
+                    # clean_f = re.sub(r'<[^>]+>', '', front_raw).strip()
+                    # clean_b = re.sub(r'<[^>]+>', '', back_raw).strip()
+
+                    # NEW FIX: Unescape HTML entities (converts &nbsp; to real space)
+                    clean_f = html.unescape(re.sub(r'<[^>]+>', '', front_raw)).strip()
+                    clean_b = html.unescape(re.sub(r'<[^>]+>', '', back_raw)).strip()
+                    
                     if clean_f and clean_b:
                         cards.append({
                             "id": str(datetime.datetime.now().timestamp())+str(len(cards)),

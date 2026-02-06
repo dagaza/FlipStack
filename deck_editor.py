@@ -4,7 +4,7 @@ import os
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gdk, Gio, GObject
+from gi.repository import Gtk, Adw, Gdk, Gio, GObject, GLib
 
 class DeckEditor(Gtk.Box):
     def __init__(self, filename, back_callback=None):
@@ -35,8 +35,16 @@ class DeckEditor(Gtk.Box):
         while child := self.list_box.get_first_child(): self.list_box.remove(child)
         cards = db.load_deck(self.filename)
         if not cards: self.list_box.append(Adw.ActionRow(title="No cards yet")); return
+        
         for card in cards:
-            f_txt = card.get("front", "???"); b_txt = card.get("back", "???"); row = Adw.ActionRow(title=f_txt, subtitle=b_txt)
+            # FIX: Escape text so special chars like '&' don't break the UI
+            f_raw = card.get("front", "???")
+            b_raw = card.get("back", "???")
+            f_txt = GLib.markup_escape_text(f_raw)
+            b_txt = GLib.markup_escape_text(b_raw)
+            
+            row = Adw.ActionRow(title=f_txt, subtitle=b_txt)
+            
             icon_box = Gtk.Box(spacing=5)
             if card.get("image"): icon_box.append(Gtk.Image.new_from_icon_name("image-x-generic-symbolic"))
             if card.get("audio"): icon_box.append(Gtk.Image.new_from_icon_name("audio-x-generic-symbolic"))

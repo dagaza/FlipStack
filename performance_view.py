@@ -84,17 +84,58 @@ class PerformanceView(Gtk.Box):
         content_box.set_margin_start(40); content_box.set_margin_end(40)
         scrolled.set_child(content_box)
 
-        # Daily Accuracy
+        # --- 1. Overall Accuracy Section (Updated with Colors) ---
+        if raw_history:
+            overall_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
+            
+            head_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            head_box.append(Gtk.Label(label="Overall Accuracy", xalign=0, css_classes=["title-2"]))
+            icon_info = Gtk.Image.new_from_icon_name("dialog-information-symbolic")
+            icon_info.set_tooltip_text("Lifetime average.\n• Good/Hard: 100%\n• Hard+Hint: 50%\n• Miss: 0%")
+            head_box.append(icon_info)
+            overall_box.append(head_box)
+
+            total_score = 0.0
+            total_reviews = 0
+            for e in raw_history:
+                r = e['rating']
+                hint = e.get('hint_used', False)
+                if r == 3: total_score += 1.0
+                elif r == 2: total_score += 0.5 if hint else 1.0
+                total_reviews += 1
+            
+            final_acc = total_score / total_reviews if total_reviews > 0 else 0.0
+            
+            lbl_acc = Gtk.Label(label=f"{int(final_acc*100)}%", css_classes=["display-1"])
+            lbl_acc.set_halign(Gtk.Align.CENTER)
+            overall_box.append(lbl_acc)
+
+            bar = Gtk.LevelBar(min_value=0, max_value=1.0)
+            bar.set_value(final_acc)
+            bar.set_hexpand(True)
+            bar.set_size_request(-1, 10)
+            
+            # --- COLOR LOGIC (Traffic Light) ---
+            if final_acc > 0.75: bar.add_css_class("bar-green")
+            elif final_acc >= 0.50: bar.add_css_class("bar-yellow")
+            else: bar.add_css_class("bar-red")
+            # -----------------------------------
+            
+            overall_box.append(bar)
+            content_box.append(overall_box)
+            content_box.append(Gtk.Separator())
+
+        # --- 2. Daily Accuracy Section (Updated with Colors) ---
         if raw_history:
             daily_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
             
-            # Header with Tooltip
             head_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
             head_box.append(Gtk.Label(label="Daily Accuracy", xalign=0, css_classes=["title-2"]))
-            
+
             icon_info = Gtk.Image.new_from_icon_name("dialog-information-symbolic")
             icon_info.set_tooltip_text("Accuracy Algorithm:\n• Good: 100%\n• Hard (No Hint): 100%\n• Hard (With Hint): 50%\n• Miss: 0%")
             head_box.append(icon_info)
+
             daily_box.append(head_box)
             
             daily_stats = {}
@@ -114,19 +155,23 @@ class PerformanceView(Gtk.Box):
                 for e in entries:
                     r = e['rating']
                     hint = e.get('hint_used', False)
-                    
-                    if r == 3: # Good
-                        total_score += 1.0
-                    elif r == 2: # Hard
-                        if hint: total_score += 0.5
-                        else: total_score += 1.0
-                    # Miss is 0
+                    if r == 3: total_score += 1.0
+                    elif r == 2: total_score += 0.5 if hint else 1.0
                 
                 acc = total_score / len(entries) if entries else 0.0
                 
                 grid.attach(Gtk.Label(label=d, xalign=0), 0, i, 1, 1)
+                
                 bar = Gtk.LevelBar(min_value=0, max_value=1.0)
-                bar.set_value(acc); bar.set_hexpand(True)
+                bar.set_value(acc)
+                bar.set_hexpand(True)
+                
+                # --- COLOR LOGIC (Traffic Light) ---
+                if acc > 0.75: bar.add_css_class("bar-green")
+                elif acc >= 0.50: bar.add_css_class("bar-yellow")
+                else: bar.add_css_class("bar-red")
+                # -----------------------------------
+                
                 grid.attach(bar, 1, i, 1, 1)
                 grid.attach(Gtk.Label(label=f"{int(acc*100)}%"), 2, i, 1, 1)
             
