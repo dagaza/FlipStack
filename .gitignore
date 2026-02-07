@@ -22,3 +22,6 @@ AppDir/
 bin/
 build/
 *.egg-info/
+
+packaging/
+*.gz
