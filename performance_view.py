@@ -8,7 +8,7 @@ from gi.repository import Gtk, Adw, Gdk
 
 class PerformanceView(Gtk.Box):
     def __init__(self, filename, session_stats=None, back_callback=None):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0) # Remove spacing on root to flush header
         self.filename = filename
         self.back_callback = back_callback
         deck_name = filename.replace(".json", "").replace("_", " ").title()
@@ -29,19 +29,18 @@ class PerformanceView(Gtk.Box):
             is_dup = False
             target_id = session_stats.get('session_id')
             
-            # 1. Primary Check: Match by Session ID (100% accurate)
+            # 1. Primary Check: Match by Session ID
             if target_id:
                 for s in sessions:
                     if s.get('session_id') == target_id:
                         is_dup = True
                         break
             
-            # 2. Fallback Check: Timestamp heuristic (for legacy/missing IDs)
+            # 2. Fallback Check: Timestamp heuristic
             elif sessions:
                 last = sessions[-1]
                 try:
                     dt_last = datetime.fromisoformat(last['start_time'])
-                    # Increased tolerance to 10 minutes just in case, but ID check should catch 99%
                     if (datetime.now() - dt_last) < timedelta(minutes=10) and last['count'] == session_stats['total']:
                         is_dup = True
                 except: pass
@@ -56,10 +55,11 @@ class PerformanceView(Gtk.Box):
                     'session_id': target_id
                 })
 
-        # Header
+        # --- 1. FIXED HEADER (Sticky) ---
+        # We keep this outside the scroller so it never scrolls away
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        header.set_margin_top(20); header.set_margin_bottom(20)
-        header.set_margin_start(20); header.set_margin_end(20)
+        header.set_margin_top(15); header.set_margin_bottom(15)
+        header.set_margin_start(15); header.set_margin_end(15)
         
         if self.back_callback:
             btn_back = Gtk.Button(icon_name="go-previous-symbolic")
@@ -68,23 +68,32 @@ class PerformanceView(Gtk.Box):
             btn_back.connect("clicked", lambda x: self.back_callback())
             header.append(btn_back)
 
-        lbl_title = Gtk.Label(label=f"Performance: {deck_name}")
-        lbl_title.add_css_class("title-1")
+        lbl_title = Gtk.Label(label=f"Stats: {deck_name}") # Shortened "Performance" to "Stats" for mobile title safety
+        lbl_title.add_css_class("title-2")
+        lbl_title.set_ellipsize(3) # Ellipsize END if title is too long
         header.append(lbl_title)
         
         self.append(header)
         self.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
+        # --- 2. SCROLLABLE CONTENT AREA ---
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_hexpand(True); scrolled.set_vexpand(True)
         self.append(scrolled)
 
-        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
-        content_box.set_margin_top(20); content_box.set_margin_bottom(40)
-        content_box.set_margin_start(40); content_box.set_margin_end(40)
-        scrolled.set_child(content_box)
+        # --- 3. ADAPTIVE CLAMP (Mobile Magic) ---
+        # Wraps content to max 800px width, but shrinks to 12px margins on mobile
+        clamp = Adw.Clamp(maximum_size=800)
+        clamp.set_margin_top(20)
+        clamp.set_margin_bottom(40)
+        clamp.set_margin_start(12) 
+        clamp.set_margin_end(12)
+        scrolled.set_child(clamp)
 
-        # --- 1. Overall Accuracy Section (Updated with Colors) ---
+        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        clamp.set_child(content_box)
+
+        # --- Overall Accuracy Section ---
         if raw_history:
             overall_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
             
@@ -115,17 +124,15 @@ class PerformanceView(Gtk.Box):
             bar.set_hexpand(True)
             bar.set_size_request(-1, 10)
             
-            # --- COLOR LOGIC (Traffic Light) ---
             if final_acc > 0.75: bar.add_css_class("bar-green")
             elif final_acc >= 0.50: bar.add_css_class("bar-yellow")
             else: bar.add_css_class("bar-red")
-            # -----------------------------------
             
             overall_box.append(bar)
             content_box.append(overall_box)
             content_box.append(Gtk.Separator())
 
-        # --- 2. Daily Accuracy Section (Updated with Colors) ---
+        # --- Daily Accuracy Section ---
         if raw_history:
             daily_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
             
@@ -146,7 +153,7 @@ class PerformanceView(Gtk.Box):
                 daily_stats[date_str].append(entry)
 
             sorted_dates = sorted(daily_stats.keys())[-7:]
-            grid = Gtk.Grid(column_spacing=20, row_spacing=10)
+            grid = Gtk.Grid(column_spacing=15, row_spacing=10) # Reduced column spacing for mobile
             
             for i, d in enumerate(sorted_dates):
                 entries = daily_stats[d]
@@ -160,17 +167,17 @@ class PerformanceView(Gtk.Box):
                 
                 acc = total_score / len(entries) if entries else 0.0
                 
-                grid.attach(Gtk.Label(label=d, xalign=0), 0, i, 1, 1)
+                # Date Label (Truncated year if needed to save space)
+                lbl_date = Gtk.Label(label=d[5:], xalign=0) # Show "MM-DD" instead of "YYYY-MM-DD" for space
+                grid.attach(lbl_date, 0, i, 1, 1)
                 
                 bar = Gtk.LevelBar(min_value=0, max_value=1.0)
                 bar.set_value(acc)
-                bar.set_hexpand(True)
+                bar.set_hexpand(True) # Expand bar to fill space
                 
-                # --- COLOR LOGIC (Traffic Light) ---
                 if acc > 0.75: bar.add_css_class("bar-green")
                 elif acc >= 0.50: bar.add_css_class("bar-yellow")
                 else: bar.add_css_class("bar-red")
-                # -----------------------------------
                 
                 grid.attach(bar, 1, i, 1, 1)
                 grid.attach(Gtk.Label(label=f"{int(acc*100)}%"), 2, i, 1, 1)
@@ -179,7 +186,7 @@ class PerformanceView(Gtk.Box):
             content_box.append(daily_box)
             content_box.append(Gtk.Separator())
 
-        # Session History
+        # --- Session History ---
         sess_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
         sess_box.append(Gtk.Label(label="Session Log", xalign=0, css_classes=["title-2"]))
 
@@ -195,7 +202,7 @@ class PerformanceView(Gtk.Box):
 
                 try:
                     dt_obj = datetime.fromisoformat(sess['start_time'])
-                    pretty_date = dt_obj.strftime("%A, %b %d at %H:%M")
+                    pretty_date = dt_obj.strftime("%a, %b %d • %H:%M") # Shorter date format
                 except:
                     pretty_date = "Unknown Date"
                 
@@ -205,7 +212,8 @@ class PerformanceView(Gtk.Box):
                 info_row.append(Gtk.Label(label=f"{sess['count']} cards", css_classes=["dim-label"]))
                 sess_inner.append(info_row)
 
-                stats_grid = Gtk.Grid(column_spacing=15, row_spacing=5)
+                # Stats Grid (Compact)
+                stats_grid = Gtk.Grid(column_spacing=10, row_spacing=5)
                 
                 stats_grid.attach(Gtk.Label(label="Good", xalign=0), 0, 0, 1, 1)
                 bar_g = Gtk.LevelBar(min_value=0, max_value=sess['count'])
@@ -253,7 +261,7 @@ class PerformanceView(Gtk.Box):
             sid = entry['session_id']
             if sid not in modern_groups:
                 modern_groups[sid] = self.new_session_dict(datetime.fromisoformat(entry['timestamp']))
-                modern_groups[sid]['session_id'] = sid # Store ID in group for lookup
+                modern_groups[sid]['session_id'] = sid
                 modern_order.append(sid)
             
             s = modern_groups[sid]

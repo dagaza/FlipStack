@@ -8,31 +8,45 @@ from gi.repository import Gtk, Adw, Gdk
 
 class DashboardView(Gtk.Box):
     def __init__(self):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=20)
-        self.set_margin_top(30)
-        self.set_margin_bottom(30)
-        self.set_margin_start(40)
-        self.set_margin_end(40)
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        
+        # 1. Page Scroller (Mobile Fix)
+        # Wraps the whole dashboard so it scrolls on small screens
+        page_scroll = Gtk.ScrolledWindow()
+        page_scroll.set_vexpand(True)
+        self.append(page_scroll)
 
-        # Title
+        # 2. Adw.Clamp (Adaptive Width)
+        # Handles margins automatically: 12px on mobile, centered max-900px on desktop
+        clamp = Adw.Clamp(maximum_size=900)
+        clamp.set_margin_top(20)
+        clamp.set_margin_bottom(20)
+        clamp.set_margin_start(12) 
+        clamp.set_margin_end(12)
+        page_scroll.set_child(clamp)
+
+        # 3. Content Container
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        clamp.set_child(content)
+
+        # --- Title ---
         title = Gtk.Label(label="Activity Dashboard")
         title.add_css_class("title-1")
-        self.append(title)
+        content.append(title)
 
-        # Stats Section (Centered)
+        # --- Stats Section (Centered) ---
         stats = db.load_stats()
         stats_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=20)
         stats_box.set_halign(Gtk.Align.CENTER)
         
-        # Streak Card (Kept reference for refresh)
         self.lbl_streak_val = Gtk.Label(label=str(stats['streak']))
         self.lbl_streak_val.add_css_class("title-1")
         
         card_streak = self.create_stat_card("🔥 Streak", self.lbl_streak_val)
         stats_box.append(card_streak)
         
-        self.append(stats_box)
-        self.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+        content.append(stats_box)
+        content.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
         # --- Heatmap Header ---
         hm_header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -57,66 +71,51 @@ class DashboardView(Gtk.Box):
         hm_header_box.append(self.lbl_year)
         hm_header_box.append(btn_next)
         
-        self.append(hm_header_box)
+        content.append(hm_header_box)
 
-        # Scrollable Heatmap Container
-        scroll = Gtk.ScrolledWindow()
-        scroll.set_vexpand(True)
-        scroll.set_min_content_height(200) 
-        scroll.set_kinetic_scrolling(False) # X11 Fix
-        
+        # --- Heatmap Container ---
+        # No nested ScrolledWindow here; flowbox expands naturally inside page_scroll
         self.flowbox = Gtk.FlowBox()
         self.flowbox.set_valign(Gtk.Align.START)
         self.flowbox.set_halign(Gtk.Align.CENTER)
         self.flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
-        self.flowbox.set_min_children_per_line(10)
+        
+        # Reduced min children to ensure it wraps nicely on 360px screens
+        self.flowbox.set_min_children_per_line(5) 
         self.flowbox.set_max_children_per_line(60)
         self.flowbox.set_row_spacing(3)
         self.flowbox.set_column_spacing(3)
         
-        scroll.set_child(self.flowbox)
-        self.append(scroll)
+        content.append(self.flowbox)
 
         # --- Legend Grid (3x2) ---
         legend_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         legend_box.set_halign(Gtk.Align.CENTER)
         legend_box.set_margin_top(10)
         
-        # Grid Setup
         grid = Gtk.Grid(column_spacing=20, row_spacing=8)
         
-        # Helper to create a legend item (Box + Label)
         def create_legend_item(css_class, text):
             item = Gtk.Box(spacing=8)
-            
-            # The colored square
             square = Gtk.Box()
             square.set_size_request(14, 14)
             square.add_css_class("heatmap-box")
             square.add_css_class(css_class)
-            
             lbl = Gtk.Label(label=text)
             lbl.add_css_class("caption")
-            
             item.append(square)
             item.append(lbl)
             return item
 
-        # Row 1
-        grid.attach(create_legend_item("hm-0", "No Activity"), 0, 0, 1, 1)        # Gray
-        grid.attach(create_legend_item("hm-future", "Future Date"), 1, 0, 1, 1)   # Outline
-                
-        # Row 2
-        grid.attach(create_legend_item("hm-1", "Light (<30)"), 0, 1, 1, 1)        # Low Opacity Green
-        grid.attach(create_legend_item("hm-2", "Normal (30-50)"), 1, 1, 1, 1)     # Med Opacity Green
-        
-        # Row 3
-        grid.attach(create_legend_item("hm-3", "Heavy (50-100)"), 0, 2, 1, 1)     # High Opacity Green
-        grid.attach(create_legend_item("hm-4", "Heroic (100+)"), 1, 2, 1, 1)      # Full Opacity Green
-
+        grid.attach(create_legend_item("hm-0", "No Activity"), 0, 0, 1, 1)     
+        grid.attach(create_legend_item("hm-future", "Future Date"), 1, 0, 1, 1)
+        grid.attach(create_legend_item("hm-1", "Light (<30)"), 0, 1, 1, 1)     
+        grid.attach(create_legend_item("hm-2", "Normal (30-50)"), 1, 1, 1, 1)  
+        grid.attach(create_legend_item("hm-3", "Heavy (50-100)"), 0, 2, 1, 1)  
+        grid.attach(create_legend_item("hm-4", "Heroic (100+)"), 1, 2, 1, 1)   
         
         legend_box.append(grid)
-        self.append(legend_box)
+        content.append(legend_box)
 
         self.render_heatmap()
 
