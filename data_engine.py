@@ -692,124 +692,96 @@ def rename_category(old_name, new_name):
 
 def create_tutorial_deck():
     """Generates a comprehensive tutorial deck for first-time users."""
-    # Safe name generation
-    name = "Welcome to FlipStack"
-    safe = "".join([c for c in name if c.isalnum() or c in (' ', '_')]).strip()
-    filename = f"{safe.lower().replace(' ', '_')}.json"
     
-    path = os.path.join(DATA_DIR, filename)
-    if os.path.exists(path):
-        return filename # Already exists, don't overwrite
-    
-    # Comprehensive Tutorial Content (Markdown)
-    cards = [
-        # --- Basics ---
-        {
-            "front": "**Welcome to FlipStack!**\n\nPress **Space** to flip this card, then rate how well you knew it.",
-            "back": "Great! Use the buttons below or keyboard shortcuts:\n\n**1 (Good)**: You know it well.\n**2 (Hard)**: You struggled.\n**3 (Miss)**: You forgot it.",
-            "tags": ["basics"],"hint": ""
-        },
-        {
-            "front": "How do you **Edit** a card while studying?",
-            "back": "Click the **Pencil Icon** in the top right corner of the card to fix typos immediately. You can also use the Edit button in the navigation bar on the left-hand side for a specific deck, and then seek the card you want to edit. ",
-            "tags": ["basics"], "hint": ""
-        },
-        
-        # --- Organization ---
-        {
-            "front": "How do you create a new **Category**?",
-            "back": "Click the **New Folder** icon in the left-hand sidebar, in the toolbar at the top.",
-            "tags": ["organization"], "hint": "Sidebar"
-        },
-         {
-            "front": "How do you create a new **Deck**?",
-            "back": "Click the blue **+** icon in the left-hand sidebar, in the toolbar at the top.",
-            "tags": ["organization"], "hint": "Sidebar"
-        },
-        {
-            "front": "How do you **Rename** a Category or Deck?",
-            "back": "**Double-click** the name of any Category or Deck in the sidebar to rename it. Note that the 'Uncategorized' category cannot be renamed.",
-            "tags": ["organization"], "hint": "Double Click"
-        },{
-            "front": "How do you **Move** a Deck to another Category?",
-            "back": "Click the **Move** icon found in line with the Deck you want to move (hover over the deck's name in the sidebar). Choose from the dialog box the destination Category.",
-            "tags": ["organization"], "hint": "Sidebar"
-        },
-        
-        # --- Data Management ---
-        {
-            "front": "How do you **Import** decks?",
-            "back": "Click the **Import** icon (see tooltips when hovering over the icons) in the top-left toolbar.\nWe support **CSV** files as well as **Anki (.apkg)**.",
-            "tags": ["data"], "hint": "Import"
-        },
-        {
-            "front": "How do you **Backup** your data?",
-            "back": "Click the **Save As** icon (see tooltips when hovering over the icons) in the toolbar. This creates a full ZIP backup of all your decks and media in the 'backups' folder.",
-            "tags": ["data"], "hint": "Backup"
-        },
-        
-        # --- Settings & Appearance ---
-        {
-            "front": "How do you change the **Font**?",
-            "back": "Click the **'ab'** icon (see tooltips when hovering over icons) in the center toolbar on the left-hand sidebar to adjust the font family and size for all cards.",
-            "tags": ["appearance"], "hint": "Text Settings"
-        },
-        {
-            "front": "How do you toggle **Dark/Light Mode**?",
-            "back": "Click the **Sun/Moon** icon in the center toolbar on the left-hand sidebar.",
-            "tags": ["appearance"], "hint": "Theme"
-        },
-        {
-            "front": "How do you turn **Sound Effects** On/Off?",
-            "back": "Click the **Speaker** icon in the center toolbar on the left-hand sidebar to mute or unmute app sounds (like the flip and grade sounds). This will not mute the audio of the cards you are studying, to which you may have added audio yourself.",
-            "tags": ["settings"], "hint": "SFX"
-        },
-        
-        # --- Study Modes ---
-        {
-            "front": "What is **Cram Mode**?",
-            "back": "Click the **Storm** icon (cloud with lightning) in the study screen, above this card, in the top-right.\n\nThis lets you review **all** cards in the deck immediately, ignoring the spaced repetition schedule. This is useful if you have an exam coming up or need to review a lot of cards quickly without following the spaced repetition schedule.",
-            "tags": ["study-modes"], "hint": "Storm Icon"
-        },
-        {
-            "front": "What is **Reverse Mode**?",
-            "back": "Click the **Rotate** icon at the top of te study screen, above this card, to swap the Front and Back of cards temporarily. This is useful for learning things more thoroughly, and testing yourself from both sides of the knowledge spectrum.",
-            "tags": ["study-modes"], "hint": "Rotate Icon"
-        },
-        {
-            "front": "How do you **Shuffle** cards?",
-            "back": "Click the **Shuffle** icon (see the tooltips when hovering over the icons) in the study header above this card to randomize the order of the remaining cards in your session.",
-            "tags": ["study-modes"], "hint": "Randomize"
-        },
-        
-        # --- Management ---
-        {
-            "front": "How do you **Edit** a Deck (add/remove/edit cards)?",
-            "back": "Hover over a deck in the sidebar on the left-hand side and click the **Edit** (Pencil) icon.\n\nOr, use the **Search** bar to find specific cards.",
-            "tags": ["management"], "hint": "Deck Editor"
-        },
-        {
-            "front": "How do you see **Performance Stats**?",
-            "back": "Hover over a deck and click the **Gauge** icon ('View Stats' tooltip).\n\nThis shows your study history, accuracy, and retention rates.",
-            "tags": ["stats"], "hint": "Graphs"
-        }
-    ]
-    
-    deck_data = []
-    for i, c in enumerate(cards):
-        deck_data.append({
-            "id": f"tutorial_{i}",
-            "front": c["front"], "back": c["back"],
-            "image": None, "audio": None,
-            "tags": c["tags"], "hint": c["hint"],
-            "bucket": 0, "next_review": None,
-            "miss_streak": 0, "suspended": False
-        })
-    
-    with open(path, "w") as f:
-        json.dump(deck_data, f, indent=2)
-
+    # 1. Ensure the Category exists
     add_category("FlipStack Tutorial")
-        
-    set_deck_category(filename, "FlipStack Tutorial")
-    return filename
+
+    # 2. Create the empty deck and CAPTURE the sanitized filename
+    # This function returns "welcome_to_flipstack.json"
+    deck_name = create_empty_deck("Welcome to FlipStack", "FlipStack Tutorial")
+    
+    # 3. Check if we actually need to populate it
+    # (If cards exist, we assume it's done to avoid duplicates)
+    existing_cards = load_deck(deck_name)
+    if len(existing_cards) > 0:
+        return deck_name
+
+    # 4. Add cards using the CORRECT sanitized filename
+    
+    # --- BASICS ---
+    add_card_to_deck(deck_name, 
+        "**Welcome to FlipStack!**\n\nHow do you flip a card to see the answer?", 
+        "**Tap anywhere** on the card if on mobile, or click/tap the Show Answer button below. You can also press **Space** on your keyboard.\n\n(Try it now!)", 
+        None, None, ["tutorial", "basics"], "Tap to Flip")
+
+    # Card 2: Grading (Swipe Gestures)
+    add_card_to_deck(deck_name, 
+        "**How do you grade a card?**\n\n(Try swiping this card now!)", 
+        "You can use the buttons below, or **Swipe** the card:\n\n• **Swipe Right:** Good (Green)\n• **Swipe Up:** Hard (Yellow)\n• **Swipe Left:** Miss (Red)", 
+        None, None, ["tutorial", "gestures"], "Swipe to Grade")
+
+    # Card 3: Mobile Navigation
+    add_card_to_deck(deck_name, 
+        "**Where are the Deck & Category Options?**\n\n(Edit Deck, Rename, Export, Delete)", 
+        "In the Library list, tap the **Menu Icon (⋮)** on the right side of any deck or category row.", 
+        None, None, ["tutorial", "navigation"], None)
+
+    # --- 2. STUDY MODES ---
+    add_card_to_deck(deck_name, 
+        "What is **Cram Mode**?",
+        "Click the **Storm** icon (cloud with lightning) in the study header toolbar above.\n\nThis lets you review **all** cards in the deck immediately, ignoring the daily schedule. Useful for last-minute exam prep!",
+        None, None, ["study-modes"], "Storm Icon")
+
+    add_card_to_deck(deck_name, 
+        "What is **Reverse Mode**?",
+        "Click the **Rotate** icon (circular arrow) in the study header toolbar above to swap the Front and Back of cards temporarily.\n\nGreat for testing your knowledge from both directions.",
+        None, None, ["study-modes"], "Rotate Icon")
+
+    add_card_to_deck(deck_name, 
+        "How do you **Shuffle** cards?",
+        "Click the **Shuffle** icon (crossed arrows) in the study header toolbar above to randomize the order of the remaining cards in your current session.",
+        None, None, ["study-modes"], "Randomize")
+
+    # --- 3. EDITING & IMAGES ---
+    add_card_to_deck(deck_name, 
+        "How do you **Edit** a card while studying?",
+        "Click the **Pencil Icon** in the top-right corner of the card area.\n\nYou can also edit the entire deck via the Library menu.",
+        None, None, ["editing"], "Pencil Icon")
+
+    add_card_to_deck(deck_name, 
+        "**Did you know?**\n\nWhat happens if you tap an image on a card?", 
+        "It opens in a **Lightbox**!\n\nThis lets you zoom in and view large diagrams clearly, even on small screens.", 
+        None, None, ["images"], "Zoom")
+
+    # --- 4. DATA MANAGEMENT ---
+    add_card_to_deck(deck_name, 
+        "How do you see **Performance Stats**?",
+        "In the Library list, tap the **Menu Icon (⋮)** next to any deck and select **View Stats**.\n\nThis shows your study history and retention rates.",
+        None, None, ["data"], "Kebab Menu")
+
+    add_card_to_deck(deck_name, 
+        "How do you **Import** decks?",
+        "Open the **Main Menu (≡)** at the top-right of the Library and select **Import Deck**.\n\nWe support **CSV** files and **Anki (.apkg)** packages.",
+        None, None, ["data"], "Hamburger Menu")
+
+    add_card_to_deck(deck_name, 
+        "How do you **Backup** your data?",
+        "Open the **Main Menu (≡)** and select **Backup Data**.\n\nThis creates a full ZIP backup of all your decks and media.",
+        None, None, ["data"], "Hamburger Menu")
+
+    # --- 5. SETTINGS ---
+    add_card_to_deck(deck_name, 
+        "How do you toggle **Dark/Light Mode**?",
+        "Click the **Sun/Moon** icon in the main toolbar at the top of the Library screen.",
+        None, None, ["appearance"], "Toolbar")
+
+    add_card_to_deck(deck_name, 
+        "How do you turn **Sound Effects** On/Off?",
+        "Click the **Speaker** icon in the main toolbar to mute app sounds (flip/grade effects).\n\n(Note: This does not mute audio attached to specific cards.)",
+        None, None, ["settings"], "Toolbar")
+
+    add_card_to_deck(deck_name, 
+        "How do you change the **Font**?",
+        "Open the **Main Menu (≡)** and select **Text Settings**.\n\nYou can adjust the font family and size for all cards to improve readability.",
+        None, None, ["appearance"], "Hamburger Menu")
+    return deck_name

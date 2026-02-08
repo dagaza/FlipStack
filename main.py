@@ -250,6 +250,7 @@ class FlipStackWindow(Adw.ApplicationWindow):
         deck_actions = [
             ('deck_stats', self.on_action_deck_stats),
             ('deck_edit', self.on_action_deck_edit),
+            ('deck_move', self.on_action_deck_move),
             ('deck_rename', self.on_action_deck_rename),
             ('deck_export', self.on_action_deck_export),
             ('deck_delete', self.on_action_deck_delete)
@@ -283,6 +284,9 @@ class FlipStackWindow(Adw.ApplicationWindow):
 
     def on_action_deck_edit(self, action, param):
         self.open_editor(param.get_string())
+
+    def on_action_deck_move(self, action, param):
+        self.on_move_deck(param.get_string())
 
     def on_action_deck_rename(self, action, param):
         self.on_rename_deck(param.get_string())
@@ -541,12 +545,17 @@ class FlipStackWindow(Adw.ApplicationWindow):
                 append_deck_item(menu, "View Stats", "deck_stats", fname, "power-profile-performance-symbolic")
                 # 2. Edit Deck
                 append_deck_item(menu, "Edit Deck", "deck_edit", fname, "document-edit-symbolic")
-                # 3. Rename
+
+                # 3. --- NEW: Move Deck ---
+                append_deck_item(menu, "Move Category", "deck_move", fname, "folder-symbolic")
+                # ----------------------
+
+                # 4. Rename
                 append_deck_item(menu, "Rename", "deck_rename", fname, "document-properties-symbolic")
-                # 4. Export
+                # 5. Export
                 append_deck_item(menu, "Export Deck", "deck_export", fname, "document-save-symbolic")
                 
-                # 5. Delete (Separate section)
+                # 6. Delete (Separate section)
                 sec_del = Gio.Menu()
                 append_deck_item(sec_del, "Delete", "deck_delete", fname, "user-trash-symbolic")
                 menu.append_section(None, sec_del)
@@ -712,6 +721,35 @@ class FlipStackWindow(Adw.ApplicationWindow):
         d.connect("response", on_r)
         d.present()
 
+    def on_move_deck(self, filename):
+        dlg = Adw.MessageDialog(transient_for=self, heading="Move Deck")
+        dlg.add_response("cancel", "Cancel")
+        dlg.add_response("move", "Move")
+        dlg.set_response_appearance("move", Adw.ResponseAppearance.SUGGESTED)
+        
+        cats = db.get_categories()
+        sl = Gtk.StringList.new(cats)
+        dropdown = Gtk.DropDown(model=sl)
+        
+        # Pre-select current category
+        curr = db.get_deck_category(filename)
+        if curr in cats:
+            dropdown.set_selected(cats.index(curr))
+            
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        box.append(Gtk.Label(label="Select Category:", xalign=0))
+        box.append(dropdown)
+        dlg.set_extra_child(box)
+        
+        def on_resp(d, r):
+            if r == "move":
+                selected_cat = cats[dropdown.get_selected()]
+                db.set_deck_category(filename, selected_cat)
+                self.refresh_sidebar()
+            d.close()
+        dlg.connect("response", on_resp)
+        dlg.present()
+
     # --- EXPORT / IMPORT / MISC ---
     
     def on_export_clicked(self, btn):
@@ -802,14 +840,88 @@ class FlipStackWindow(Adw.ApplicationWindow):
         self.update_sound_icon()
         
     def show_welcome_dialog(self):
-        d = Adw.MessageDialog(heading="Welcome to FlipStack!", transient_for=self)
-        d.add_response("ok", "Let's Go")
-        d.set_body("FlipStack helps you memorize anything using Spaced Repetition.\n\nCreate a deck, add cards, and start flipping!")
+        # Determine if this is the First Run or just "Help"
+        is_first_run = self.settings.get("first_run", True)
+        
+        title = "Welcome to FlipStack!" if is_first_run else "Help & Manual"
+        d = Adw.MessageDialog(heading=title, transient_for=self)
+        d.add_response("ok", "Got it")
+        
+        # 1. SCROLLABLE CONTAINER (Crucial for Mobile)
+        # We wrap the content in a ScrolledWindow so it fits on short 600px screens.
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_propagate_natural_height(True)
+        scroll.set_max_content_height(450) # Limit height so it doesn't cover the whole desktop
+        scroll.set_min_content_height(300)
+        
+        # 2. CLAMP (For readability)
+        # Keeps text narrow on desktop, but fills width on mobile.
+        clamp = Adw.Clamp(maximum_size=400)
+        scroll.set_child(clamp)
+        
+        # 3. CONTENT BOX
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.set_margin_top(10); content.set_margin_bottom(10)
+        content.set_margin_start(10); content.set_margin_end(10)
+        clamp.set_child(content)
+
+        # --- A. New User Banner (Only on first run) ---
+        if is_first_run:
+            banner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+            banner.add_css_class("card") # Adds the nice background/border
+            banner.set_margin_bottom(5)
+            
+            icon = Gtk.Image.new_from_icon_name("emblem-favorite-symbolic")
+            icon.add_css_class("red-icon")
+            icon.set_pixel_size(16)
+            
+            lbl_ban = Gtk.Label(label="<b>We created a 'Welcome to FlipStack' tutorial deck!</b>\nTry playing it to learn the basics.", use_markup=True, xalign=0)
+            lbl_ban.set_wrap(True)
+            
+            banner.append(icon); banner.append(lbl_ban)
+            content.append(banner)
+
+        # --- Helper for Manual Sections ---
+        def add_section(emoji_title, body_text):
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            
+            lbl_t = Gtk.Label(label=f"<b>{emoji_title}</b>", use_markup=True, xalign=0)
+            lbl_t.add_css_class("heading")
+            
+            lbl_b = Gtk.Label(label=body_text, use_markup=True, xalign=0)
+            lbl_b.set_wrap(True) # <--- The key to mobile responsiveness
+            lbl_b.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+            lbl_b.add_css_class("dim-label") # Slightly dimmer for hierarchy
+            
+            box.append(lbl_t); box.append(lbl_b)
+            content.append(box)
+
+        # --- B. The Full Manual ---
+        add_section("📚 Basics", 
+            "Create Categories and Decks to organize your flashcards.\nUse tags (e.g. #history) to group cards across decks.")
+        
+        add_section("🧠 Study Modes", 
+            "• <b>Standard:</b> Spaced Repetition (Leitner system) for efficient retention.\n• <b>Cram:</b> Review all cards instantly.\n• <b>Reverse:</b> Flip Question/Answer sides.")
+        
+        add_section("📊 Grading", 
+            "• <b>Good (Green):</b> Card returns later.\n• <b>Hard (Yellow):</b> Card returns sooner.\n• <b>Miss (Red):</b> Card returns tomorrow.")
+        
+        # Combined Gestures & Keyboard for Mobile/Desktop context
+        add_section("👆 Controls and Gestures", 
+            "• <b>Tap / Space:</b> Flip Card\n• <b>Swipe Right / '1':</b> Good\n• <b>Swipe Up / '2':</b> Hard\n• <b>Swipe Left / '3':</b> Miss")
+
+        add_section("🔤 Fonts", 
+            "If you see boxes (□), the font doesn't support your language. Install a new font on your system, and the app will automatically detect it.")
+
+        d.set_extra_child(scroll)
         d.present()
-        self.settings["first_run"] = False
-        db.save_settings(self.settings)
-        db.create_tutorial_deck()
-        self.refresh_sidebar()
+        
+        # --- First Run Logic ---
+        if is_first_run:
+            self.settings["first_run"] = False
+            db.save_settings(self.settings)
+            db.create_tutorial_deck()
+            self.refresh_sidebar()
 
 class FlipStackApp(Adw.Application):
     def __init__(self):
