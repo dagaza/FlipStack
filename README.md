@@ -2,7 +2,14 @@
 
 **FlipStack** is a modern, distraction-free flashcard app designed to help you master any subject through the power of **Spaced Repetition (SRS)**.
 
-By utilizing a scientifically proven algorithm to halt the 'Forgetting Curve,' FlipStack calculates the perfect time for you to review a card, ensuring you memorize more in less time. Whether you are learning a new language, preparing for exams, or memorizing code syntax, FlipStack adapts to your pace to ensure long-term retention. Built with Python and GTK4/LibAdwaita, it offers a clean, native experience on Linux Mint, Ubuntu, Fedora, and other modern distributions.
+By utilizing a scientifically proven algorithm to halt the 'Forgetting Curve,' FlipStack calculates the perfect time for you to review a card, ensuring you memorize more in less time. Whether you are learning a new language, preparing for exams, or memorizing code syntax, FlipStack adapts to your pace to ensure long-term retention. 
+
+Built with Python and GTK4/LibAdwaita, it offers a clean, native, and fully adaptive experience on Linux Mint, Ubuntu, Fedora, and is also the first app of its kind to work perfectly as well as Linux Mobile devices (PinePhone, Librem 5, Volla etc.).
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/flashcard_front_light.png" width="65%" alt="FlipStack Desktop View">
+<img src="https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/library_mobile_dark.png" width="30%" alt="FlipStack Mobile View">
+</p>
 
 ![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/flashcard_front_light.png) 
 
@@ -14,6 +21,13 @@ By utilizing a scientifically proven algorithm to halt the 'Forgetting Curve,' F
 * **Reverse Mode:** Flip the question and answer sides to test your knowledge bidirectionally.
 * **Shuffle:** Randomize card order to prevent pattern matching.
 * **Hints:** Cards support optional hints that remain hidden until you need a nudge.
+
+**📱Adaptive & Touch Friendly**
+
+* **Responsive Layout:** The UI automatically transforms from a split-pane desktop view to a mobile-friendly drawer navigation based on window size.
+* **Touch Controls:** Large, easy-to-hit buttons and swipe gestures make studying on the go effortless.
+* **Swipe Gestures:** Grade cards intuitively on touch screens—Swipe Right (Good), Up (Hard), or Left (Miss).
+* **Mobile Navigation:** Streamlined menus and back-navigation ensure a native feel on handheld devices.
 
 **📊 Visual Progress Tracking**
 * **Activity Heatmap:** Visualize your daily consistency with a GitHub-style contribution graph.
