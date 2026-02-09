@@ -790,8 +790,17 @@ class FlipStackWindow(Adw.ApplicationWindow):
             if r=="delete": 
                 db.delete_deck(fname)
                 self.refresh_sidebar()
-                self.on_dashboard_clicked(None)
+                # FIX: Reset the right-hand pane to Dashboard "silently"
+                # We do this manually instead of calling self.on_dashboard_clicked()
+                # because that method forces the view to slide away from the Library on mobile.
+                self.content_stack.set_visible_child_name("dashboard")
+                self.content_page.set_title("Dashboard")
+                
+                if hasattr(self.dash_view, 'refresh'): 
+                    self.dash_view.refresh()
+                
             dlg.close()
+            
         d.connect("response", on_r)
         d.present()
 
