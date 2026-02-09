@@ -113,25 +113,51 @@ def set_deck_category(filename, category):
         json.dump(meta, f)
 
 # --- Global Search & Tags ---
-def search_all_cards(query):
-    results = []
-    if not query: return []
-    query = query.lower()
+def search_global(query):
+    """
+    Returns a dictionary with structured search results:
+    {
+        'decks': [filename, ...],
+        'cards': [{'front':..., 'back':..., 'deck':...}, ...],
+        'tags': [tag_name, ...]
+    }
+    """
+    results = {'decks': [], 'cards': [], 'tags': []}
+    if not query: return results
+    
+    query = query.lower().strip()
     files = get_all_decks()
+    
+    # Track unique tags to avoid duplicates
+    found_tags = set()
+
     for fname in files:
+        # 1. Search Deck Names
+        display_name = fname.replace(".json", "").replace("_", " ")
+        if query in display_name.lower():
+            results['decks'].append(fname)
+
+        # 2. Search Cards & Tags
         cards = load_deck(fname)
-        deck_name = fname.replace(".json", "").replace("_", " ").title()
         for card in cards:
-            tags = " ".join(card.get("tags", [])).lower()
-            if query in card.get("front", "").lower() or \
-               query in card.get("back", "").lower() or \
-               query in tags:
-                results.append({
-                    "deck_name": deck_name,
+            # Check Content
+            f_text = card.get("front", "").lower()
+            b_text = card.get("back", "").lower()
+            
+            if query in f_text or query in b_text:
+                results['cards'].append({
+                    "deck_name": display_name,
                     "filename": fname,
                     "front": card["front"],
                     "back": card["back"]
                 })
+            
+            # Check Tags
+            for tag in card.get("tags", []):
+                if query in tag.lower():
+                    found_tags.add(tag)
+
+    results['tags'] = sorted(list(found_tags))
     return results
 
 def get_cards_by_tag(tag):
@@ -722,7 +748,7 @@ def create_tutorial_deck():
 
     # Card 3: Mobile Navigation
     add_card_to_deck(deck_name, 
-        "**Where are the Deck & Category Options?**\n\n(Edit Deck, Rename, Export, Delete)", 
+        "**Where are the Deck and Category Options?**\n\n(Edit Deck, Rename, Export, Delete)", 
         "In the Library list, tap the **Menu Icon (⋮)** on the right side of any deck or category row.", 
         None, None, ["tutorial", "navigation"], None)
 

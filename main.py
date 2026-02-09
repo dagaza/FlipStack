@@ -140,17 +140,31 @@ class FlipStackWindow(Adw.ApplicationWindow):
         # === SIDEBAR CONTENT ===
         sidebar_content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         
-        # Search Entry
+        # --- Search Bar Setup ---
         self.search_revealer = Gtk.Revealer()
         self.search_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
         
-        self.search_entry = Gtk.SearchEntry(placeholder_text="Search cards...")
-        self.search_entry.set_margin_top(5); self.search_entry.set_margin_bottom(5)
-        self.search_entry.set_margin_start(8); self.search_entry.set_margin_end(8)
-        self.search_entry.set_hexpand(True) 
-        self.search_entry.connect("search-changed", self.on_search_changed)
+        # Container for Entry + Button
+        search_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        search_box.set_margin_start(10); search_box.set_margin_end(10); search_box.set_margin_bottom(10)
         
-        self.search_revealer.set_child(self.search_entry)
+        # 1. The Input Field
+        self.search_entry = Gtk.Entry(placeholder_text="Search decks, cards, tags...")
+        self.search_entry.set_hexpand(True)
+        
+        # FIX: The "activate" signal is the standard way to catch "Enter" on a Gtk.Entry
+        self.search_entry.connect("activate", self.on_search_trigger)
+        
+        # 2. The "Go" Button
+        btn_go_search = Gtk.Button(label="Go")
+        btn_go_search.add_css_class("suggested-action") 
+        btn_go_search.set_tooltip_text("Run Search")
+        btn_go_search.connect("clicked", self.on_search_trigger)
+        
+        search_box.append(self.search_entry)
+        search_box.append(btn_go_search)
+        
+        self.search_revealer.set_child(search_box)
         sidebar_content_box.append(self.search_revealer)
 
         # Deck List
@@ -203,8 +217,16 @@ class FlipStackWindow(Adw.ApplicationWindow):
         self.content_stack.add_named(self.dash_scroll, "dashboard")
         
         self.search_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        # FIX: Ensure search view expands
+        self.search_view.set_vexpand(True)
+        
         self.search_results_list = Gtk.ListBox(); self.search_results_list.add_css_class("boxed-list")
-        s_s = Gtk.ScrolledWindow(); s_s.set_child(self.search_results_list)
+        
+        s_s = Gtk.ScrolledWindow()
+        # FIX: Ensure scrolled window expands
+        s_s.set_vexpand(True)
+        s_s.set_child(self.search_results_list)
+        
         self.search_view.append(s_s)
         self.content_stack.add_named(self.search_view, "global_search")
         
@@ -404,9 +426,10 @@ class FlipStackWindow(Adw.ApplicationWindow):
         if hasattr(self.dash_view, 'refresh'): self.dash_view.refresh()
         self.split_view.set_show_content(True)
 
-    def on_deck_selected(self, lb, row):
-        if row and hasattr(row, '_filename'):
+    def on_deck_selected(self, lb, row): 
+        if row and hasattr(row, '_filename'): 
             self.open_study_session(row._filename)
+            # FIX: Use set_show_content(True) here too
             self.split_view.set_show_content(True)
 
     def open_study_session(self, fname):
@@ -577,24 +600,110 @@ class FlipStackWindow(Adw.ApplicationWindow):
         if reveal: self.search_entry.grab_focus()
         else: self.search_entry.set_text("")
 
-    def on_search_changed(self, entry):
-        q = entry.get_text()
-        self.refresh_sidebar(q)
-        if len(q) > 2:
-            self.content_stack.set_visible_child_name("global_search")
-            self.content_page.set_title("Search Results")
-            self.split_view.set_show_content(True) 
+    # --- SEARCH ---
+    def on_search_toggled(self, btn):
+        reveal = btn.get_active()
+        self.search_revealer.set_reveal_child(reveal)
+        if reveal: self.search_entry.grab_focus()
+        else: self.search_entry.set_text("")
+
+    def on_search_trigger(self, widget):
+        """Triggered by Enter key or Search Button."""
+        query = self.search_entry.get_text()
+        if not query: return
+        
+        self.content_stack.set_visible_child_name("global_search")
+        
+        # FIX: Use set_show_content(True) instead of set_show_sidebar(False)
+        self.split_view.set_show_content(True)
+        
+        while child := self.search_results_list.get_first_child(): 
+            self.search_results_list.remove(child)
             
-            while c := self.search_results_list.get_first_child(): self.search_results_list.remove(c)
-            results = db.search_all_cards(q)
-            if not results: self.search_results_list.append(Adw.ActionRow(title="No results found"))
-            else:
-                for res in results:
-                    row = Adw.ActionRow(title=res['front'], subtitle=f"{res['deck_name']}")
-                    btn = Gtk.Button(icon_name="go-next-symbolic", css_classes=["flat"])
-                    btn.connect("clicked", lambda b, f=res['filename']: self.open_editor(f))
-                    row.add_suffix(btn)
-                    self.search_results_list.append(row)
+        results = db.search_global(query)
+        
+        def add_header(title):
+            row = Gtk.ListBoxRow()
+            row.set_activatable(False); row.set_selectable(False)
+            lbl = Gtk.Label(label=title, xalign=0, css_classes=["heading", "dim-label"])
+            lbl.set_margin_top(15); lbl.set_margin_bottom(5); lbl.set_margin_start(10)
+            row.set_child(lbl)
+            self.search_results_list.append(row)
+
+        has_results = False
+
+        # 1. Deck Results
+        if results['decks']:
+            has_results = True
+            add_header("Decks")
+            for fname in results['decks']:
+                # RAW TEXT
+                raw_name = fname.replace(".json", "").replace("_", " ").title()
+                # SAFE TEXT (Escaped)
+                clean_name = GLib.markup_escape_text(raw_name)
+                
+                row = Adw.ActionRow(title=clean_name, subtitle="Open Deck")
+                row.add_suffix(Gtk.Image.new_from_icon_name("folder-open-symbolic"))
+                
+                def open_deck_search(r, f=fname):
+                    self.open_study_session(f)
+                
+                btn = Gtk.Button(icon_name="media-playback-start-symbolic", css_classes=["flat"])
+                btn.set_valign(Gtk.Align.CENTER)
+                btn.connect("clicked", lambda b, f=fname: open_deck_search(None, f))
+                row.add_suffix(btn)
+                self.search_results_list.append(row)
+
+        # 2. Card Results
+        if results['cards']:
+            has_results = True
+            add_header("Cards")
+            for res in results['cards']:
+                # RAW TEXT
+                raw_front = res['front'].replace("\n", " ")
+                raw_back = res['back'].replace("\n", " ")
+                raw_deck = res['deck_name']
+                
+                # SAFE TEXT (Escaped)
+                # We escape the content so 'P&L' becomes 'P&amp;L' safely
+                title = GLib.markup_escape_text(raw_front)
+                subtitle = GLib.markup_escape_text(f"{raw_deck} • {raw_back}")
+                
+                row = Adw.ActionRow(title=title, subtitle=subtitle)
+                row.set_subtitle_lines(1)
+                row.set_title_lines(1)
+                
+                btn = Gtk.Button(icon_name="document-edit-symbolic", css_classes=["flat"])
+                btn.set_valign(Gtk.Align.CENTER)
+                btn.connect("clicked", lambda b, f=res['filename']: self.open_editor(f))
+                row.add_suffix(btn)
+                self.search_results_list.append(row)
+
+        # 3. Tag Results
+        if results['tags']:
+            has_results = True
+            add_header("Tags")
+            for tag in results['tags']:
+                safe_tag = GLib.markup_escape_text(f"#{tag}")
+                row = Adw.ActionRow(title=safe_tag, subtitle="Filter by this tag")
+                row.add_suffix(Gtk.Image.new_from_icon_name("tag-symbolic"))
+                self.search_results_list.append(row)
+
+        if not has_results:
+            # Escape the query too, just in case they searched for "&"
+            safe_query = GLib.markup_escape_text(query)
+            self.search_results_list.append(Adw.ActionRow(title="No results found", subtitle=f"No matches for '{safe_query}'"))
+
+    def on_search_toggled(self, btn):
+        # Just toggles visibility, doesn't clear immediately
+        reveal = btn.get_active()
+        self.search_revealer.set_reveal_child(reveal)
+        if reveal: 
+            self.search_entry.grab_focus()
+        else:
+            # Optional: Clear results when closing bar?
+            # self.content_stack.set_visible_child_name("dashboard") 
+            pass
 
     # --- THEME TOGGLE ---
     def on_theme_toggle(self, btn):
@@ -634,6 +743,10 @@ class FlipStackWindow(Adw.ApplicationWindow):
         
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         entry = Gtk.Entry(placeholder_text="Deck Name")
+        
+        # FIX: Pressing Enter triggers the "create" response
+        entry.connect("activate", lambda w: d.response("create"))
+
         cats = db.get_categories()
         sl = Gtk.StringList.new(cats)
         dd = Gtk.DropDown(model=sl)
@@ -655,6 +768,10 @@ class FlipStackWindow(Adw.ApplicationWindow):
         d.add_response("cancel", "Cancel")
         d.add_response("create", "Create")
         entry = Gtk.Entry(placeholder_text="Category Name")
+
+        # FIX: Pressing Enter triggers the "create" response
+        entry.connect("activate", lambda w: d.response("create"))
+
         d.set_extra_child(entry)
         def on_r(dlg, r):
             if r=="create" and entry.get_text():
@@ -697,8 +814,12 @@ class FlipStackWindow(Adw.ApplicationWindow):
         d.add_response("cancel", "Cancel")
         d.add_response("rename", "Rename")
         d.set_response_appearance("rename", Adw.ResponseAppearance.SUGGESTED)
-        entry = Gtk.Entry(text=clean)
+        
+        # FIX: Pressing Enter triggers the "rename" response
+        entry.connect("activate", lambda w: d.response("rename"))
+        
         d.set_extra_child(entry)
+
         def on_r(dlg, r):
             if r=="rename" and entry.get_text():
                 db.rename_deck(fname, entry.get_text())
@@ -712,6 +833,10 @@ class FlipStackWindow(Adw.ApplicationWindow):
         d.add_response("cancel", "Cancel")
         d.add_response("rename", "Rename")
         entry = Gtk.Entry(text=old_name)
+
+        # FIX: Pressing Enter triggers the "rename" response
+        entry.connect("activate", lambda w: d.response("rename"))
+
         d.set_extra_child(entry)
         def on_r(dlg, r):
             if r=="rename" and entry.get_text():
