@@ -11,8 +11,6 @@ Built with Python and GTK4/LibAdwaita, it offers a clean, native, and fully adap
 <img src="https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/library_mobile_dark.png" width="30%" alt="FlipStack Mobile View">
 </p>
 
-![FlipStack Screenshot](https://raw.githubusercontent.com/dagaza/flipstack/main/assets/screenshots/flashcard_front_light.png) 
-
 ## ✨ Key Features
 
 **🧠 Smart Study Modes**
