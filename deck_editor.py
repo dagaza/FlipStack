@@ -100,7 +100,7 @@ class DeckEditor(Gtk.Box):
             btn_del = Gtk.Button(icon_name="user-trash-symbolic")
             btn_del.add_css_class("flat"); btn_del.add_css_class("destructive-action")
             btn_del.set_tooltip_text("Delete")
-            btn_del.connect("clicked", lambda b, cid=card.get("id"): self.on_delete_clicked(cid))
+            btn_del.connect("clicked", lambda b, c=card: self.confirm_delete(c))
             row.add_suffix(btn_del)
             
             self.list_box.append(row)
@@ -243,3 +243,33 @@ class DeckEditor(Gtk.Box):
                     if res: callback(res.get_path())
                 except: pass
             d.open(self.get_root(), None, on_o)
+
+    def confirm_delete(self, card):
+        # 1. Create the Dialog
+        # We use the card content in the body to be specific about what is being deleted
+        front_text = card.get("front", "this card")
+        if len(front_text) > 30: front_text = front_text[:30] + "..."
+        
+        dialog = Adw.MessageDialog(
+            heading="Delete Card?",
+            body=f"Are you sure you want to delete '{front_text}'? This cannot be undone.",
+            transient_for=self.get_root()
+        )
+
+        # 2. Add Responses
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("delete", "Delete")
+
+        # 3. Style the "Delete" button as destructive (red)
+        dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+
+        # 4. Handle Response
+        def on_response(d, response):
+            if response == "delete":
+                self.on_delete_clicked(card.get("id"))
+            d.close()
+
+        dialog.connect("response", on_response)
+        dialog.present()
