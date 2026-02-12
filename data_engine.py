@@ -149,7 +149,8 @@ def search_global(query):
                     "deck_name": display_name,
                     "filename": fname,
                     "front": card["front"],
-                    "back": card["back"]
+                    "back": card["back"],
+                    "id": card["id"]
                 })
             
             # Check Tags

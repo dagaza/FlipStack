@@ -336,6 +336,18 @@ class FlipStackWindow(Adw.ApplicationWindow):
             .hm-2 { background-color: #26a269; opacity: 0.6; }
             .hm-3 { background-color: #26a269; opacity: 0.8; }
             .hm-4 { background-color: #26a269; opacity: 1.0; }
+
+            @keyframes flash_anim {
+              0% { background-color: transparent; }
+              50% { background-color: alpha(@theme_selected_bg_color, 0.4); }
+              100% { background-color: transparent; }
+            }
+            .flash-row {
+              animation-name: flash_anim;
+              animation-duration: 0.8s;
+              animation-iteration-count: 3;
+              animation-timing-function: ease-in-out;
+            }
         """)
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         
@@ -673,10 +685,19 @@ class FlipStackWindow(Adw.ApplicationWindow):
                 row.set_subtitle_lines(1)
                 row.set_title_lines(1)
                 
+                # 1. EDIT BUTTON -> Quick Edit Modal
                 btn = Gtk.Button(icon_name="document-edit-symbolic", css_classes=["flat"])
                 btn.set_valign(Gtk.Align.CENTER)
-                btn.connect("clicked", lambda b, f=res['filename']: self.open_editor(f))
+                # Pass 'res' which now includes 'id' thanks to Step 1
+                btn.connect("clicked", lambda b, f=res['filename'], c=res: self.quick_edit_card(f, c))
                 row.add_suffix(btn)
+                
+                # 2. DOUBLE CLICK -> Edit Deck Screen with Flash
+                ctrl = Gtk.GestureClick()
+                ctrl.set_button(1) # Left click
+                ctrl.connect("pressed", self.on_search_double_click, res['filename'], res['id'])
+                row.add_controller(ctrl)
+                
                 self.search_results_list.append(row)
 
         # 3. Tag Results
@@ -694,6 +715,10 @@ class FlipStackWindow(Adw.ApplicationWindow):
             safe_query = GLib.markup_escape_text(query)
             self.search_results_list.append(Adw.ActionRow(title="No results found", subtitle=f"No matches for '{safe_query}'"))
 
+    def on_search_double_click(self, gesture, n_press, x, y, filename, card_id):
+        if n_press == 2:
+            self.open_editor(filename, highlight_id=card_id)
+    
     def on_search_toggled(self, btn):
         # Just toggles visibility, doesn't clear immediately
         reveal = btn.get_active()
@@ -718,10 +743,14 @@ class FlipStackWindow(Adw.ApplicationWindow):
         db.save_settings(self.settings)
 
     # --- EDITOR & UTILS ---
-    def open_editor(self, fname):
+    def open_editor(self, fname, highlight_id=None):
         n = f"edit_{fname}"
         if e := self.content_stack.get_child_by_name(n): self.content_stack.remove(e)
-        self.content_stack.add_named(deck_editor.DeckEditor(fname, self.go_back_to_dashboard), n)
+
+        # Pass the highlight_id to the constructor
+        editor = deck_editor.DeckEditor(fname, self.go_back_to_dashboard, highlight_card_id=highlight_id)
+        
+        self.content_stack.add_named(editor, n)
         self.content_stack.set_visible_child_name(n)
         self.content_page.set_title("Edit Deck")
         self.split_view.set_show_content(True)
@@ -1056,6 +1085,60 @@ class FlipStackWindow(Adw.ApplicationWindow):
             db.save_settings(self.settings)
             db.create_tutorial_deck()
             self.refresh_sidebar()
+
+    def quick_edit_card(self, filename, card_data):
+        # We can leverage the DeckEditor logic by instantiating it temporarily
+        # or we can simply use the deck_editor module if we refactored it. 
+        # Since we didn't refactor DeckEditor.show_card_dialog to be static, 
+        # we will manually instantiate a lightweight editor to reuse its dialog logic.
+        
+        # 1. Create a dummy editor instance (we won't add it to the UI)
+        # We pass a dummy callback because we won't use the back button
+        temp_editor = deck_editor.DeckEditor(filename, lambda: None)
+        
+        # 2. Hack: The editor needs to find the 'root' for the dialog. 
+        # Since temp_editor isn't in the widget tree, get_root() returns None.
+        # We can monkey-patch get_root or modify show_card_dialog. 
+        # EASIER: Let's just manually override the transient parent in the dialog method? 
+        # Actually, let's just copy the dialog logic here for safety and simplicity.
+        
+        # --- QUICK EDIT DIALOG LOGIC ---
+        d = Adw.MessageDialog(heading="Edit Card", transient_for=self)
+        d.set_modal(True)
+        d.add_response("cancel", "Cancel")
+        d.add_response("save", "Save")
+        d.set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED)
+        
+        # Load full card to get tags/images/etc (search results might be partial)
+        full_deck = db.load_deck(filename)
+        full_card = next((c for c in full_deck if c["id"] == card_data["id"]), None)
+        if not full_card: return # Should not happen
+
+        # ... (Reuse the exact UI building code from DeckEditor.show_card_dialog) ...
+        # For brevity, I will summarize the connection:
+        
+        # [Insert the UI construction code: Front, Back, Hint, Tags, etc.]
+        # You can copy the code from deck_editor.py -> show_card_dialog -> building 'box'
+        # just make sure 'self' refers to FlipStackWindow for things like file picking if needed.
+        
+        # Simplified for this specific user request:
+        # We will assume we construct the dialog 'd' with Entry 'tf' (front) and 'tb' (back).
+        
+        # Let's use the actual deck_editor module to avoid code duplication!
+        # We can modify DeckEditor.show_card_dialog to accept an optional 'parent_window' arg.
+        
+        # BUT, for now, let's call the method on the temp_editor and fix the parent issue:
+        def get_real_root(): return self
+        temp_editor.get_root = get_real_root 
+        
+        # Override refresh_list to update OUR search results instead of the editor list
+        def on_refresh():
+            self.on_search_trigger(None) # Refresh search results
+            
+        temp_editor.refresh_list = on_refresh
+        
+        # Trigger the dialog
+        temp_editor.show_card_dialog("edit", full_card)
 
 class FlipStackApp(Adw.Application):
     def __init__(self):

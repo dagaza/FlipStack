@@ -9,10 +9,11 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gdk, Gio, GObject, GLib
 
 class DeckEditor(Gtk.Box):
-    def __init__(self, filename, back_callback=None):
+    def __init__(self, filename, back_callback=None, highlight_card_id=None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.filename = filename
         self.back_callback = back_callback
+        self.highlight_card_id = highlight_card_id # <--- Store it
         # 0 = Default (Creation Date), 1 = A-Z, 2 = Z-A
         self.sort_mode = 0
         
@@ -115,6 +116,8 @@ class DeckEditor(Gtk.Box):
             status.set_vexpand(True)
             self.list_box.append(status)
             return
+
+        target_row = None # <--- Tracker
         
         for card in cards:
             f_raw = card.get("front", "???")
@@ -125,6 +128,12 @@ class DeckEditor(Gtk.Box):
             row = Adw.ActionRow(title=f_txt, subtitle=b_txt)
             row.set_title_lines(2)
             row.set_subtitle_lines(2)
+
+            # --- HIGHLIGHT LOGIC ---
+            if self.highlight_card_id and card.get("id") == self.highlight_card_id:
+                row.add_css_class("flash-row") # We will define this CSS in main.py
+                target_row = row
+            # -----------------------
             
             icon_box = Gtk.Box(spacing=5)
             if card.get("image"): icon_box.append(Gtk.Image.new_from_icon_name("image-x-generic-symbolic"))
@@ -149,6 +158,17 @@ class DeckEditor(Gtk.Box):
             row.add_suffix(btn_del)
             
             self.list_box.append(row)
+        
+        # --- SCROLL LOGIC ---
+        if target_row:
+            # We use a small timeout to let the UI layout settle before scrolling/focusing
+            def scroll_to_target():
+                target_row.grab_focus() 
+                return False
+            GLib.timeout_add(100, scroll_to_target)
+            
+            # Clear the ID so it doesn't flash again on next refresh
+            self.highlight_card_id = None
 
     def on_delete_clicked(self, card_id):
         if card_id: db.delete_card(self.filename, card_id); self.refresh_list()
