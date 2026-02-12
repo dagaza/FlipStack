@@ -2,6 +2,7 @@ import gi
 import data_engine as db
 import os
 import html
+import re
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
@@ -12,6 +13,8 @@ class DeckEditor(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.filename = filename
         self.back_callback = back_callback
+        # 0 = Default (Creation Date), 1 = A-Z, 2 = Z-A
+        self.sort_mode = 0
         
         # --- 1. Compact Header ---
         header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -33,6 +36,14 @@ class DeckEditor(Gtk.Box):
 
         # Spacer to push Add button to the right
         header_box.append(Gtk.Label(hexpand=True))
+
+        # Sort Button
+        # Logic: Current sort is A-Z (Ascending), so the button shows the option to switch to Z-A (Descending)
+        self.btn_sort = Gtk.Button(icon_name="view-sort-descending-symbolic") 
+        self.btn_sort.add_css_class("flat")
+        self.btn_sort.set_tooltip_text("Sort: Z-A")
+        self.btn_sort.connect("clicked", self.toggle_sort)
+        header_box.append(self.btn_sort)
 
         # Add "New Card" Button
         btn_add = Gtk.Button(icon_name="list-add-symbolic")
@@ -61,9 +72,43 @@ class DeckEditor(Gtk.Box):
         
         self.refresh_list()
 
+    def toggle_sort(self, btn):
+        # Toggle 0 <-> 1
+        self.sort_mode = 1 - self.sort_mode
+        
+        if self.sort_mode == 0: # Current View is A-Z
+            # Button offers Z-A
+            self.btn_sort.set_icon_name("view-sort-descending-symbolic")
+            self.btn_sort.set_tooltip_text("Sort: Z-A")
+        else: # Current View is Z-A
+            # Button offers A-Z
+            self.btn_sort.set_icon_name("view-sort-ascending-symbolic")
+            self.btn_sort.set_tooltip_text("Sort: A-Z")
+            
+        self.refresh_list()
+
+    def get_clean_text(self, card):
+        """
+        Robust cleaner: 
+        1. Removes ALL punctuation/markdown (**, ?, (), #, etc).
+        2. Strips whitespace.
+        3. Converts to lowercase.
+        """
+        raw = card.get("front", "")
+        # [^\w\s] matches anything that is NOT a word char (a-z, 0-9) or whitespace
+        clean = re.sub(r'[^\w\s]', '', raw).strip().lower()
+        return clean
+
     def refresh_list(self):
         while child := self.list_box.get_first_child(): self.list_box.remove(child)
         cards = db.load_deck(self.filename)
+
+       # --- 2-STATE SORTING ---
+        if self.sort_mode == 0:   # A -> Z
+            cards.sort(key=self.get_clean_text)
+        else:                     # Z -> A
+            cards.sort(key=self.get_clean_text, reverse=True)
+        # -----------------------
         
         if not cards:
             status = Adw.StatusPage(icon_name="folder-open-symbolic", title="No Cards", description="Click '+' to add a card.")
