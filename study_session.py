@@ -30,6 +30,7 @@ class StudySession(Gtk.Box):
         self.current_img_path = None 
         self.input_locked = False       # <--- Prevents ghost clicks
         self.has_finished_deck = False  # <--- Prevents double audio
+        self.is_editing = False
         # ------------------------
 
         self.setup_css()
@@ -294,7 +295,7 @@ class StudySession(Gtk.Box):
     
     def flip_card(self, *args):
         # Prevent flipping if already locked (though unlikely here)
-        if self.input_locked: return
+        if self.input_locked or self.is_editing: return # <--- ADD check here
 
         self.play_sound("flip")
         self.card_stack.set_visible_child_name("back")
@@ -325,7 +326,7 @@ class StudySession(Gtk.Box):
         self.add_controller(swipe)
 
     def on_swipe(self, controller, vel_x, vel_y):
-        if self.input_locked: return  # <--- Check lock
+        if self.input_locked or self.is_editing: return # <--- ADD check here
         
         # Only handle swipes if we are looking at the BACK of a card
         if not self.is_flipped: 
@@ -350,7 +351,7 @@ class StudySession(Gtk.Box):
 
     def rate_card(self, rating):
         # 1. Check Lock
-        if self.input_locked: return
+        if self.input_locked or self.is_editing: return # <--- ADD check here
         
         # 2. LOCK IMMEDIATELY to prevent accidental swipes (e.g. "Good" click + micro-swipe up)
         self.input_locked = True 
@@ -448,7 +449,7 @@ class StudySession(Gtk.Box):
         rem = self.cards[self.current_index:]; done = self.cards[:self.current_index]; random.shuffle(rem); self.cards = done + rem; self.refresh_view(); toast = Adw.Toast.new("Cards Shuffled"); self.get_root().get_content().add_toast(toast)
     
     def on_key_pressed(self, controller, keyval, keycode, state):
-        if self.input_locked: return # <--- Check lock
+        if self.input_locked or self.is_editing: return # <--- ADD check here
 
         if keyval == Gdk.KEY_space and not self.is_flipped: 
             self.flip_card()
@@ -475,6 +476,7 @@ class StudySession(Gtk.Box):
         card = self.cards[self.current_index]; self.show_card_dialog(mode="edit", card=card)
 
     def show_card_dialog(self, mode, card=None):
+        self.is_editing = True # <--- LOCK INPUTS IMMEDIATELY
         title = "Add Card" if mode == "add" else "Edit Card"
         d = Adw.MessageDialog(heading=title, transient_for=self.get_root())
         d.set_modal(True)
@@ -575,6 +577,15 @@ class StudySession(Gtk.Box):
                     if mode == "add": db.add_card_to_deck(self.filename, f, b, self.temp_img, self.temp_aud, tags, hint_val)
                     else: db.edit_card(self.filename, card["id"], f, b, self.temp_img, self.temp_aud, tags, card.get("suspended", False), hint_val)
                     self.load_cards(); self.refresh_view()
+            
+            # --- UNLOCK LOGIC ---
+            # We delay unlocking slightly to swallow any "Enter/Space" key release events 
+            # that triggered the Save button, preventing them from flipping the card underneath.
+            def unlock():
+                self.is_editing = False
+                return False
+            GLib.timeout_add(200, unlock) 
+            
         d.connect("response", on_r)
         d.present()
 
